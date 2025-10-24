@@ -5,6 +5,8 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import UserDashboard from './pages/UserDashboard';
 import VendorDashboard from './pages/VendorDashboard';
+import UserProfile from './pages/UserProfile';
+import VendorProfile from './pages/VendorProfile';
 
 function App() {
   const { user, isAuthenticated } = useAuthStore();
@@ -26,10 +28,28 @@ function App() {
         />
         
         <Route 
+          path="/user/profile" 
+          element={
+            isAuthenticated() && user?.role === 'USER' 
+              ? <UserProfile /> 
+              : <Navigate to="/login" />
+          } 
+        />
+        
+        <Route 
           path="/vendor/dashboard" 
           element={
             isAuthenticated() && user?.role === 'VENDOR' 
               ? <VendorDashboard /> 
+              : <Navigate to="/login" />
+          } 
+        />
+        
+        <Route 
+          path="/vendor/profile" 
+          element={
+            isAuthenticated() && user?.role === 'VENDOR' 
+              ? <VendorProfile /> 
               : <Navigate to="/login" />
           } 
         />

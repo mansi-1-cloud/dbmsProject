@@ -5,6 +5,7 @@ import { api } from '../services/api';
 import { socket } from '../services/socket';
 import TokenCard from '../components/TokenCard';
 import CreateTokenModal from '../components/CreateTokenModal';
+import TokenDetailModal from '../components/TokenDetailModal';
 
 export default function UserDashboard() {
   const { user, logout } = useAuthStore();
@@ -12,6 +13,7 @@ export default function UserDashboard() {
   const [tokens, setTokens] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [selectedToken, setSelectedToken] = useState<any>(null);
 
   useEffect(() => {
     loadTokens();
@@ -60,12 +62,20 @@ export default function UserDashboard() {
             <h1 className="text-2xl font-bold text-gray-800">QueueFlow</h1>
             <p className="text-sm text-gray-600">Welcome, {user?.name}!</p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-          >
-            Logout
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => navigate('/user/profile')}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+            >
+              Profile
+            </button>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
@@ -99,7 +109,9 @@ export default function UserDashboard() {
         ) : (
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {tokens.map(token => (
-              <TokenCard key={token.id} token={token} />
+              <div key={token.id} onClick={() => setSelectedToken(token)} className="cursor-pointer">
+                <TokenCard token={token} />
+              </div>
             ))}
           </div>
         )}
@@ -109,6 +121,13 @@ export default function UserDashboard() {
         <CreateTokenModal
           onClose={() => setShowCreateModal(false)}
           onSuccess={handleTokenCreated}
+        />
+      )}
+
+      {selectedToken && (
+        <TokenDetailModal
+          token={selectedToken}
+          onClose={() => setSelectedToken(null)}
         />
       )}
     </div>

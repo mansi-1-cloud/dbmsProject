@@ -4,6 +4,8 @@ import { useAuthStore } from '../store/authStore';
 import { api } from '../services/api';
 import { socket } from '../services/socket';
 import VendorQueueCard from '../components/VendorQueueCard';
+import TokenDetailModal from '../components/TokenDetailModal';
+import AddServiceModal from '../components/AddServiceModal';
 
 export default function VendorDashboard() {
   const { user, logout } = useAuthStore();
@@ -12,6 +14,8 @@ export default function VendorDashboard() {
   const [queueItems, setQueueItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'pending' | 'queue'>('pending');
+  const [selectedToken, setSelectedToken] = useState<any>(null);
+  const [showAddService, setShowAddService] = useState(false);
 
   useEffect(() => {
     loadData();
@@ -94,12 +98,26 @@ export default function VendorDashboard() {
             <p className="text-sm text-gray-600">{user?.name}</p>
             <p className="text-xs text-gray-500">Services: {user?.services?.join(', ')}</p>
           </div>
-          <button
-            onClick={handleLogout}
-            className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
-          >
-            Logout
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => navigate('/vendor/profile')}
+              className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
+            >
+              Profile
+            </button>
+            <button
+              onClick={() => setShowAddService(true)}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+            >
+              + Add Service
+            </button>
+            <button
+              onClick={handleLogout}
+              className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
+            >
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
@@ -146,9 +164,9 @@ export default function VendorDashboard() {
           ) : (
             <div className="space-y-4">
               {pendingRequests.map(token => (
-                <div key={token.id} className="bg-white rounded-lg shadow p-6">
+                <div key={token.id} className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition cursor-pointer">
                   <div className="flex justify-between items-start">
-                    <div className="flex-1">
+                    <div className="flex-1" onClick={() => setSelectedToken(token)}>
                       <h3 className="text-xl font-bold capitalize mb-2">{token.serviceType}</h3>
                       <p className="text-gray-600 mb-1">From: {token.user.name} ({token.user.email})</p>
                       <p className="text-sm text-gray-500">
@@ -159,16 +177,17 @@ export default function VendorDashboard() {
                           <strong>Details:</strong> {JSON.stringify(token.params)}
                         </div>
                       )}
+                      <p className="text-xs text-blue-600 mt-2">Click for full details →</p>
                     </div>
                     <div className="flex gap-2">
                       <button
-                        onClick={() => handleApprove(token.id)}
+                        onClick={(e) => { e.stopPropagation(); handleApprove(token.id); }}
                         className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
                       >
                         Approve
                       </button>
                       <button
-                        onClick={() => handleReject(token.id)}
+                        onClick={(e) => { e.stopPropagation(); handleReject(token.id); }}
                         className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition"
                       >
                         Reject
@@ -197,6 +216,24 @@ export default function VendorDashboard() {
           )
         )}
       </main>
+
+      {selectedToken && (
+        <TokenDetailModal
+          token={selectedToken}
+          onClose={() => setSelectedToken(null)}
+        />
+      )}
+
+      {showAddService && (
+        <AddServiceModal
+          vendorId={user!.id}
+          onClose={() => setShowAddService(false)}
+          onSuccess={() => {
+            setShowAddService(false);
+            window.location.reload();
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -1,0 +1,156 @@
+import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../store/authStore';
+import { api } from '../services/api';
+
+export default function UserProfile() {
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
+  const [tokens, setTokens] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    total: 0,
+    pending: 0,
+    completed: 0,
+    rejected: 0,
+  });
+
+  useEffect(() => {
+    loadProfile();
+  }, [user]);
+
+  const loadProfile = async () => {
+    try {
+      const tokensData = await api.getUserTokens();
+      setTokens(tokensData);
+      
+      // Calculate statistics
+      setStats({
+        total: tokensData.length,
+        pending: tokensData.filter((t: any) => t.status === 'PENDING').length,
+        completed: tokensData.filter((t: any) => t.status === 'COMPLETED').length,
+        rejected: tokensData.filter((t: any) => t.status === 'REJECTED').length,
+      });
+    } catch (error) {
+      console.error('Failed to load profile:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* Header */}
+      <header className="bg-white shadow">
+        <div className="container mx-auto px-4 py-4">
+          <button
+            onClick={() => navigate('/user/dashboard')}
+            className="text-blue-600 hover:text-blue-800 mb-2 flex items-center gap-2"
+          >
+            ← Back to Dashboard
+          </button>
+          <h1 className="text-3xl font-bold text-gray-800">My Profile</h1>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-8">
+        <div className="grid md:grid-cols-3 gap-6">
+          {/* Profile Information */}
+          <div className="md:col-span-2 space-y-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-2xl font-bold mb-4">Personal Information</h2>
+              <div className="space-y-3">
+                <div>
+                  <label className="text-sm text-gray-600">Name</label>
+                  <p className="text-lg font-medium">{user?.name}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Email</label>
+                  <p className="text-lg font-medium">{user?.email}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Account Type</label>
+                  <p className="text-lg font-medium">User</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Recent Requests */}
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-2xl font-bold mb-4">Recent Requests</h2>
+              
+              {tokens.length === 0 ? (
+                <p className="text-gray-500 text-center py-8">No requests yet</p>
+              ) : (
+                <div className="space-y-3">
+                  {tokens.slice(0, 5).map((token: any) => (
+                    <div
+                      key={token.id}
+                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200"
+                    >
+                      <div>
+                        <p className="font-medium capitalize">{token.serviceType}</p>
+                        <p className="text-sm text-gray-500">
+                          {new Date(token.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        token.status === 'COMPLETED' ? 'bg-green-100 text-green-800' :
+                        token.status === 'REJECTED' ? 'bg-red-100 text-red-800' :
+                        token.status === 'PENDING' ? 'bg-yellow-100 text-yellow-800' :
+                        'bg-blue-100 text-blue-800'
+                      }`}>
+                        {token.status}
+                      </span>
+                    </div>
+                  ))}
+                  {tokens.length > 5 && (
+                    <button
+                      onClick={() => navigate('/user/dashboard')}
+                      className="w-full text-center text-blue-600 hover:text-blue-800 py-2"
+                    >
+                      View all requests →
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Statistics */}
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <h2 className="text-xl font-bold mb-4">Request Statistics</h2>
+              <div className="space-y-4">
+                <div className="p-4 bg-blue-50 rounded-lg">
+                  <p className="text-sm text-gray-600">Total Requests</p>
+                  <p className="text-3xl font-bold text-blue-600">{stats.total}</p>
+                </div>
+                <div className="p-4 bg-yellow-50 rounded-lg">
+                  <p className="text-sm text-gray-600">Pending</p>
+                  <p className="text-3xl font-bold text-yellow-600">{stats.pending}</p>
+                </div>
+                <div className="p-4 bg-green-50 rounded-lg">
+                  <p className="text-sm text-gray-600">Completed</p>
+                  <p className="text-3xl font-bold text-green-600">{stats.completed}</p>
+                </div>
+                <div className="p-4 bg-red-50 rounded-lg">
+                  <p className="text-sm text-gray-600">Rejected</p>
+                  <p className="text-3xl font-bold text-red-600">{stats.rejected}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}
