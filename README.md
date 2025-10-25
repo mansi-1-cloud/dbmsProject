@@ -439,6 +439,7 @@ MIT
 
 ## 👥 Contributors
 
+1. Garv Barthwal
 Built as a demonstration of real-time queue management systems.
 
 ---
