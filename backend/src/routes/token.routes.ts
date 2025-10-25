@@ -11,7 +11,7 @@ const router = Router();
 // Create new token (users only)
 router.post('/', authenticate, requireRole('USER'), async (req: AuthRequest, res: Response) => {
   try {
-    const { vendorId, serviceType, params } = createTokenSchema.parse(req.body);
+    const { vendorId, serviceType, subject, description, params } = req.body;
     
     // Verify vendor exists and offers the service
     const vendor = await prisma.vendor.findUnique({ where: { id: vendorId } });
@@ -23,11 +23,24 @@ router.post('/', authenticate, requireRole('USER'), async (req: AuthRequest, res
       return res.status(400).json({ error: 'Vendor does not offer this service' });
     }
 
+    // Validate subject and description
+    if (!subject || subject.trim().length === 0) {
+      return res.status(400).json({ error: 'Subject is required' });
+    }
+    if (!description || description.trim().length === 0) {
+      return res.status(400).json({ error: 'Description is required' });
+    }
+    if (description.split(/\s+/).length > 100) {
+      return res.status(400).json({ error: 'Description must be under 100 words' });
+    }
+
     const token = await prisma.token.create({
       data: {
         userId: req.user!.id,
         vendorId,
         serviceType,
+        subject: subject.trim(),
+        description: description.trim(),
         params,
         status: 'PENDING',
       },
@@ -109,18 +122,25 @@ router.post('/:id/approve', authenticate, requireRole('VENDOR'), async (req: Aut
       return res.status(400).json({ error: 'Token is not pending' });
     }
 
-    const updatedToken = await prisma.token.update({
+    // First update status to QUEUED
+    await prisma.token.update({
       where: { id: req.params.id },
       data: { status: 'QUEUED' },
+    });
+
+    // Add to queue (this will calculate position and ETA)
+    await queueManager.addToQueue(token.id, token.vendorId);
+
+    // Fetch the updated token with all queue information
+    const updatedToken = await prisma.token.findUnique({
+      where: { id: req.params.id },
       include: {
         user: { select: { name: true, email: true } },
+        vendor: { select: { name: true, email: true } },
       },
     });
 
-    // Add to queue
-    await queueManager.addToQueue(token.id, token.vendorId);
-
-    // Notify user
+    // Notify user with full token info
     emitToUser(token.userId, 'token.updated', updatedToken);
     
     // Update vendor's queue
@@ -207,6 +227,74 @@ router.post('/:id/complete', authenticate, requireRole('VENDOR'), async (req: Au
     emitToVendor(token.vendorId, 'queue.update', queue);
 
     res.json(updatedToken);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// User cancels token
+router.post('/:id/cancel', authenticate, requireRole('USER'), async (req: AuthRequest, res: Response) => {
+  try {
+    const token = await prisma.token.findUnique({ where: { id: req.params.id } });
+
+    if (!token) {
+      return res.status(404).json({ error: 'Token not found' });
+    }
+
+    if (token.userId !== req.user!.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    if (['COMPLETED', 'CANCELLED', 'REJECTED'].includes(token.status)) {
+      return res.status(400).json({ error: 'Cannot cancel this token' });
+    }
+
+    const updatedToken = await prisma.token.update({
+      where: { id: req.params.id },
+      data: { status: 'CANCELLED' },
+      include: {
+        vendor: { select: { name: true, email: true } },
+      },
+    });
+
+    // Remove from queue if queued
+    if (['QUEUED', 'IN_PROGRESS'].includes(token.status)) {
+      await queueManager.removeFromQueue(token.id, token.vendorId);
+      
+      // Update vendor's queue
+      const queue = await queueManager.getVendorQueue(token.vendorId);
+      emitToVendor(token.vendorId, 'queue.update', queue);
+    }
+
+    // Notify vendor
+    emitToVendor(token.vendorId, 'token.cancelled', updatedToken);
+
+    res.json(updatedToken);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// User deletes completed token
+router.delete('/:id', authenticate, requireRole('USER'), async (req: AuthRequest, res: Response) => {
+  try {
+    const token = await prisma.token.findUnique({ where: { id: req.params.id } });
+
+    if (!token) {
+      return res.status(404).json({ error: 'Token not found' });
+    }
+
+    if (token.userId !== req.user!.id) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    if (token.status !== 'COMPLETED') {
+      return res.status(400).json({ error: 'Can only delete completed tokens' });
+    }
+
+    await prisma.token.delete({ where: { id: req.params.id } });
+
+    res.json({ message: 'Token deleted successfully' });
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }

@@ -18,7 +18,11 @@ export default function TokenCard({ token }: TokenCardProps) {
   const [timeRemaining, setTimeRemaining] = useState('');
 
   useEffect(() => {
-    if (!token.estimatedCompletion) return;
+    console.log('TokenCard for:', token.id, 'Status:', token.status, 'ETA:', token.estimatedCompletion, 'Position:', token.queuePosition);
+    if (!token.estimatedCompletion) {
+      console.log('No estimated completion time for token:', token.id);
+      return;
+    }
 
     const updateCountdown = () => {
       const now = new Date();

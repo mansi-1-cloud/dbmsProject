@@ -2,12 +2,15 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../services/api';
+import EditUserProfileModal from '../components/EditUserProfileModal';
 
 export default function UserProfile() {
-  const { user } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const navigate = useNavigate();
+  const [profile, setProfile] = useState<any>(null);
   const [tokens, setTokens] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     pending: 0,
@@ -21,7 +24,12 @@ export default function UserProfile() {
 
   const loadProfile = async () => {
     try {
-      const tokensData = await api.getUserTokens();
+      const [profileData, tokensData] = await Promise.all([
+        api.getUserProfile(),
+        api.getUserTokens(),
+      ]);
+      console.log('Loaded profile:', profileData);
+      setProfile(profileData);
       setTokens(tokensData);
       
       // Calculate statistics
@@ -33,8 +41,29 @@ export default function UserProfile() {
       });
     } catch (error) {
       console.error('Failed to load profile:', error);
+      // Fallback to user data from auth store
+      if (user) {
+        setProfile({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          phoneNumber: null,
+          address: null,
+        });
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleProfileUpdated = (updatedProfile: any) => {
+    setProfile(updatedProfile);
+    if (user) {
+      setUser({ 
+        ...user, 
+        name: updatedProfile.name,
+        email: updatedProfile.email,
+      });
     }
   };
 
@@ -66,15 +95,31 @@ export default function UserProfile() {
           {/* Profile Information */}
           <div className="md:col-span-2 space-y-6">
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-2xl font-bold mb-4">Personal Information</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold">Personal Information</h2>
+                <button
+                  onClick={() => setShowEditModal(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                >
+                  Edit Profile
+                </button>
+              </div>
               <div className="space-y-3">
                 <div>
                   <label className="text-sm text-gray-600">Name</label>
-                  <p className="text-lg font-medium">{user?.name}</p>
+                  <p className="text-lg font-medium">{profile?.name || user?.name}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Email</label>
-                  <p className="text-lg font-medium">{user?.email}</p>
+                  <p className="text-lg font-medium">{profile?.email || user?.email}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Phone Number</label>
+                  <p className="text-lg font-medium">{profile?.phoneNumber || 'Not provided'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Address</label>
+                  <p className="text-lg font-medium">{profile?.address || 'Not provided'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Account Type</label>
@@ -151,6 +196,14 @@ export default function UserProfile() {
           </div>
         </div>
       </main>
+
+      {showEditModal && (
+        <EditUserProfileModal
+          profile={profile || { name: user?.name || '', email: user?.email || '', phoneNumber: '', address: '' }}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={handleProfileUpdated}
+        />
+      )}
     </div>
   );
 }

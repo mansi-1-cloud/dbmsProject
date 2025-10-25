@@ -84,6 +84,18 @@ export default function TokenDetailModal({ token, onClose }: TokenDetailModalPro
                 <span className="text-sm text-gray-600">Service Type:</span>
                 <p className="font-medium capitalize text-lg">{token.serviceType}</p>
               </div>
+              {token.subject && (
+                <div>
+                  <span className="text-sm text-gray-600">Subject:</span>
+                  <p className="font-medium text-lg">{token.subject}</p>
+                </div>
+              )}
+              {token.description && (
+                <div>
+                  <span className="text-sm text-gray-600">Description:</span>
+                  <p className="font-medium whitespace-pre-wrap">{token.description}</p>
+                </div>
+              )}
               {token.vendor && (
                 <div>
                   <span className="text-sm text-gray-600">Vendor:</span>

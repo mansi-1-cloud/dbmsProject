@@ -13,6 +13,7 @@ export default function VendorDashboard() {
   const [pendingRequests, setPendingRequests] = useState<any[]>([]);
   const [queueItems, setQueueItems] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [approvingTokenId, setApprovingTokenId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'pending' | 'queue'>('pending');
   const [selectedToken, setSelectedToken] = useState<any>(null);
   const [showAddService, setShowAddService] = useState(false);
@@ -30,6 +31,7 @@ export default function VendorDashboard() {
 
     // Listen for queue updates
     socket.on('queue.update', (updatedQueue) => {
+      console.log('Queue update received:', updatedQueue);
       setQueueItems(updatedQueue);
     });
 
@@ -55,11 +57,29 @@ export default function VendorDashboard() {
   };
 
   const handleApprove = async (tokenId: string) => {
+    setApprovingTokenId(tokenId);
     try {
-      await api.approveToken(tokenId);
+      const approvedToken = await api.approveToken(tokenId);
+      
+      // Remove from pending
       setPendingRequests(prev => prev.filter(t => t.id !== tokenId));
+      
+      // Add to queue immediately (optimistic update) - check for duplicates
+      setQueueItems(prev => {
+        // Don't add if already exists
+        if (prev.some(t => t.id === approvedToken.id)) {
+          return prev;
+        }
+        return [...prev, approvedToken];
+      });
+      
+      // Switch to queue tab to show the approved request
+      setActiveTab('queue');
     } catch (error) {
       console.error('Failed to approve token:', error);
+      alert('Failed to approve request. Please try again.');
+    } finally {
+      setApprovingTokenId(null);
     }
   };
 
@@ -182,9 +202,10 @@ export default function VendorDashboard() {
                     <div className="flex gap-2">
                       <button
                         onClick={(e) => { e.stopPropagation(); handleApprove(token.id); }}
-                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                        disabled={approvingTokenId === token.id}
+                        className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        Approve
+                        {approvingTokenId === token.id ? 'Approving...' : 'Approve'}
                       </button>
                       <button
                         onClick={(e) => { e.stopPropagation(); handleReject(token.id); }}

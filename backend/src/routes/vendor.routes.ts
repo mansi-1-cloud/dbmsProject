@@ -87,6 +87,8 @@ router.get('/:id/profile', authenticate, requireRole('VENDOR'), async (req: Auth
         id: true,
         name: true,
         email: true,
+        phoneNumber: true,
+        address: true,
         services: true,
         createdAt: true,
       },
@@ -97,6 +99,48 @@ router.get('/:id/profile', authenticate, requireRole('VENDOR'), async (req: Auth
     }
 
     res.json(vendor);
+  } catch (error: any) {
+    res.status(400).json({ error: error.message });
+  }
+});
+
+// Update vendor profile
+router.patch('/:id/profile', authenticate, requireRole('VENDOR'), async (req: AuthRequest, res: Response) => {
+  try {
+    const vendorId = req.params.id;
+
+    if (req.user!.id !== vendorId) {
+      return res.status(403).json({ error: 'Unauthorized' });
+    }
+
+    const { name, phoneNumber, address } = req.body;
+
+    // Validate phone number: allow null/undefined or exactly 10 digits
+    if (phoneNumber !== undefined && phoneNumber !== null) {
+      const digits = String(phoneNumber).replace(/\D/g, '');
+      if (digits.length !== 10) {
+        return res.status(400).json({ error: 'Phone number must be exactly 10 digits' });
+      }
+    }
+
+    const updatedVendor = await prisma.vendor.update({
+      where: { id: vendorId },
+      data: {
+        ...(name && { name }),
+        ...(phoneNumber !== undefined && { phoneNumber: phoneNumber === null ? null : String(phoneNumber).replace(/\D/g, '') }),
+        ...(address !== undefined && { address }),
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phoneNumber: true,
+        address: true,
+        services: true,
+      },
+    });
+
+    res.json(updatedVendor);
   } catch (error: any) {
     res.status(400).json({ error: error.message });
   }

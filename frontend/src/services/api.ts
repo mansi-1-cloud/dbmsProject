@@ -72,10 +72,10 @@ class ApiService {
   }
 
   // Tokens
-  async createToken(vendorId: string, serviceType: string, params?: any) {
+  async createToken(vendorId: string, serviceType: string, subject: string, description: string, params?: any) {
     return this.request('/tokens', {
       method: 'POST',
-      body: JSON.stringify({ vendorId, serviceType, params }),
+      body: JSON.stringify({ vendorId, serviceType, subject, description, params }),
     });
   }
 
@@ -128,6 +128,38 @@ class ApiService {
     return this.request(`/vendors/${vendorId}/services`, {
       method: 'PATCH',
       body: JSON.stringify({ services }),
+    });
+  }
+
+  // Token Actions
+  async cancelToken(tokenId: string) {
+    return this.request(`/tokens/${tokenId}/cancel`, {
+      method: 'POST',
+    });
+  }
+
+  async deleteToken(tokenId: string) {
+    return this.request(`/tokens/${tokenId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Profile Management
+  async getUserProfile() {
+    return this.request('/auth/user/profile');
+  }
+
+  async updateUserProfile(data: { name?: string; phoneNumber?: string; address?: string }) {
+    return this.request('/auth/user/profile', {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
+  }
+
+  async updateVendorProfile(vendorId: string, data: { name?: string; phoneNumber?: string; address?: string }) {
+    return this.request(`/vendors/${vendorId}/profile`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
     });
   }
 }

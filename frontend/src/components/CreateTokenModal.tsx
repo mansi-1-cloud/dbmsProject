@@ -9,10 +9,13 @@ interface CreateTokenModalProps {
 export default function CreateTokenModal({ onClose, onSuccess }: CreateTokenModalProps) {
   const [vendors, setVendors] = useState<any[]>([]);
   const [selectedVendor, setSelectedVendor] = useState('');
+  const [selectedVendorProfile, setSelectedVendorProfile] = useState<any>(null);
   const [serviceType, setServiceType] = useState('');
-  const [params, setParams] = useState('');
+  const [subject, setSubject] = useState('');
+  const [description, setDescription] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showVendorProfile, setShowVendorProfile] = useState(false);
 
   useEffect(() => {
     loadVendors();
@@ -34,19 +37,18 @@ export default function CreateTokenModal({ onClose, onSuccess }: CreateTokenModa
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    // Validate description word count
+    const wordCount = description.trim().split(/\s+/).length;
+    if (wordCount > 100) {
+      setError(`Description must be under 100 words (currently ${wordCount} words)`);
+      return;
+    }
+
     setLoading(true);
 
     try {
-      let parsedParams = undefined;
-      if (params.trim()) {
-        try {
-          parsedParams = JSON.parse(params);
-        } catch {
-          throw new Error('Invalid JSON in parameters field');
-        }
-      }
-
-      const token = await api.createToken(selectedVendor, serviceType, parsedParams);
+      const token = await api.createToken(selectedVendor, serviceType, subject, description);
       onSuccess(token);
     } catch (err: any) {
       setError(err.message || 'Failed to create request');
@@ -76,22 +78,35 @@ export default function CreateTokenModal({ onClose, onSuccess }: CreateTokenModa
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Select Vendor
             </label>
-            <select
-              value={selectedVendor}
-              onChange={(e) => {
-                setSelectedVendor(e.target.value);
-                setServiceType('');
-              }}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            >
-              <option value="">-- Choose a vendor --</option>
-              {vendors.map(vendor => (
-                <option key={vendor.id} value={vendor.id}>
-                  {vendor.name} - {vendor.services.join(', ')}
-                </option>
-              ))}
-            </select>
+            <div className="flex gap-2">
+              <select
+                value={selectedVendor}
+                onChange={(e) => {
+                  setSelectedVendor(e.target.value);
+                  setServiceType('');
+                  const vendor = vendors.find(v => v.id === e.target.value);
+                  setSelectedVendorProfile(vendor || null);
+                }}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                required
+              >
+                <option value="">-- Choose a vendor --</option>
+                {vendors.map(vendor => (
+                  <option key={vendor.id} value={vendor.id}>
+                    {vendor.name}
+                  </option>
+                ))}
+              </select>
+              {selectedVendorProfile && (
+                <button
+                  type="button"
+                  onClick={() => setShowVendorProfile(true)}
+                  className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
+                >
+                  View Profile
+                </button>
+              )}
+            </div>
           </div>
 
           {selectedVendor && (
@@ -117,17 +132,32 @@ export default function CreateTokenModal({ onClose, onSuccess }: CreateTokenModa
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
-              Additional Parameters (Optional JSON)
+              Subject *
+            </label>
+            <input
+              type="text"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="Brief title for your request"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Description * (Max 100 words)
             </label>
             <textarea
-              value={params}
-              onChange={(e) => setParams(e.target.value)}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              rows={3}
-              placeholder='{"pages": 10, "color": true}'
+              rows={4}
+              placeholder="Describe your service request in detail..."
+              required
             />
             <p className="text-xs text-gray-500 mt-1">
-              Example: {`{"pages": 10, "color": true}`}
+              {description.trim() ? description.trim().split(/\s+/).length : 0} / 100 words
             </p>
           </div>
 
@@ -141,13 +171,56 @@ export default function CreateTokenModal({ onClose, onSuccess }: CreateTokenModa
             </button>
             <button
               type="submit"
-              disabled={loading || !selectedVendor || !serviceType}
+              disabled={loading || !selectedVendor || !serviceType || !subject.trim() || !description.trim()}
               className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
             >
               {loading ? 'Creating...' : 'Create Request'}
             </button>
           </div>
         </form>
+
+        {/* Vendor Profile Modal */}
+        {showVendorProfile && selectedVendorProfile && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 m-4">
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-xl font-bold">Vendor Profile</h3>
+                <button
+                  onClick={() => setShowVendorProfile(false)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              <div className="space-y-3">
+                <div>
+                  <p className="text-sm text-gray-600">Name</p>
+                  <p className="font-medium">{selectedVendorProfile.name}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Email</p>
+                  <p className="font-medium">{selectedVendorProfile.email}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-600">Services Offered</p>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {selectedVendorProfile.services.map((service: string) => (
+                      <span key={service} className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm capitalize">
+                        {service}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowVendorProfile(false)}
+                className="mt-6 w-full px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-900 transition"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -3,14 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { api } from '../services/api';
 import AddServiceModal from '../components/AddServiceModal';
+import EditVendorProfileModal from '../components/EditVendorProfileModal';
 
 export default function VendorProfile() {
-  const { user } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const navigate = useNavigate();
   const [profile, setProfile] = useState<any>(null);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [showAddService, setShowAddService] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [removingService, setRemovingService] = useState<string | null>(null);
 
   useEffect(() => {
@@ -24,6 +26,7 @@ export default function VendorProfile() {
         api.getVendorPending(user!.id),
       ]);
       
+      console.log('Loaded vendor profile:', profileData);
       setProfile(profileData);
       
       // Calculate statistics
@@ -32,7 +35,22 @@ export default function VendorProfile() {
         pendingRequests: tokensData.length,
       });
     } catch (error) {
-      console.error('Failed to load profile:', error);
+      console.error('Failed to load vendor profile:', error);
+      // Fallback to user data from auth store
+      if (user) {
+        setProfile({
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          phoneNumber: null,
+          address: null,
+          services: user.services || [],
+        });
+        setStats({
+          totalServices: user.services?.length || 0,
+          pendingRequests: 0,
+        });
+      }
     } finally {
       setLoading(false);
     }
@@ -60,6 +78,18 @@ export default function VendorProfile() {
 
   const handleServiceAdded = () => {
     loadProfile();
+  };
+
+  const handleProfileUpdated = (updatedProfile: any) => {
+    setProfile(updatedProfile);
+    if (user) {
+      setUser({ 
+        ...user, 
+        name: updatedProfile.name,
+        email: updatedProfile.email,
+        services: updatedProfile.services,
+      });
+    }
   };
 
   if (loading) {
@@ -90,7 +120,15 @@ export default function VendorProfile() {
           {/* Profile Information */}
           <div className="md:col-span-2 space-y-6">
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-2xl font-bold mb-4">Personal Information</h2>
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold">Personal Information</h2>
+                <button
+                  onClick={() => setShowEditModal(true)}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                >
+                  Edit Profile
+                </button>
+              </div>
               <div className="space-y-3">
                 <div>
                   <label className="text-sm text-gray-600">Name</label>
@@ -99,6 +137,14 @@ export default function VendorProfile() {
                 <div>
                   <label className="text-sm text-gray-600">Email</label>
                   <p className="text-lg font-medium">{profile?.email}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Phone Number</label>
+                  <p className="text-lg font-medium">{profile?.phoneNumber || 'Not provided'}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-600">Address</label>
+                  <p className="text-lg font-medium">{profile?.address || 'Not provided'}</p>
                 </div>
                 <div>
                   <label className="text-sm text-gray-600">Member Since</label>
@@ -170,6 +216,15 @@ export default function VendorProfile() {
           vendorId={user!.id}
           onClose={() => setShowAddService(false)}
           onSuccess={handleServiceAdded}
+        />
+      )}
+
+      {showEditModal && (
+        <EditVendorProfileModal
+          vendorId={user!.id}
+          profile={profile || { name: user?.name || '', email: user?.email || '', phoneNumber: '', address: '' }}
+          onClose={() => setShowEditModal(false)}
+          onSuccess={handleProfileUpdated}
         />
       )}
     </div>
