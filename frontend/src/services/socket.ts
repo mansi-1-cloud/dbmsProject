@@ -1,7 +1,9 @@
 import { io, Socket } from 'socket.io-client';
-import { useAuthStore } from '../store/authStore';
+import { getDefaultStore } from 'jotai';
+import { tokenAtom } from '../store/authAtoms';
 
 const SOCKET_URL = 'http://localhost:4000';
+const store = getDefaultStore();
 
 class SocketService {
   private socket: Socket | null = null;
@@ -9,7 +11,7 @@ class SocketService {
   private maxReconnectAttempts = 5;
 
   connect() {
-    const token = useAuthStore.getState().token;
+    const token = store.get(tokenAtom);
     
     if (!token) {
       console.warn('No token available, cannot connect to WebSocket');

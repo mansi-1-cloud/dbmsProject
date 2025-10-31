@@ -5,6 +5,19 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>QueueFlow - Real-Time Queue Management</title>
+    <script>
+      // Initialize theme before page renders to avoid flash
+      try {
+        const theme = localStorage.getItem('theme');
+        if (theme === '"dark"' || theme === 'dark') {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      } catch (e) {
+        console.error('Theme init error:', e);
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>

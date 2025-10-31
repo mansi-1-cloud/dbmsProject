@@ -1,10 +1,20 @@
 import { useState } from 'react';
-import { api } from '../services/api';
+import { Modal } from './Modal';
+import { LoadingSpinner } from './LoadingSpinner';
+// import { api } from '../services/api';
+
+// Mock
+const api = {
+  addVendorService: async (_vendorId: string, serviceName: string) => {
+    await new Promise(res => setTimeout(res, 1000));
+    return { services: [serviceName] };
+  }
+}
 
 interface AddServiceModalProps {
   vendorId: string;
   onClose: () => void;
-  onSuccess: (service: string) => void;
+  onSuccess: (updatedServices: string[]) => void;
 }
 
 export default function AddServiceModal({ vendorId, onClose, onSuccess }: AddServiceModalProps) {
@@ -15,11 +25,17 @@ export default function AddServiceModal({ vendorId, onClose, onSuccess }: AddSer
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    
+    // Add validation
+    if (!/^[a-zA-Z0-9\s-]+$/.test(serviceName)) {
+      setError('Invalid characters. Use letters, numbers, spaces, hyphens.');
+      return;
+    }
+    
     setLoading(true);
-
     try {
-      await api.addVendorService(vendorId, serviceName);
-      onSuccess(serviceName);
+      const result = await api.addVendorService(vendorId, serviceName.trim().toLowerCase());
+      onSuccess(result.services);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to add service');
@@ -29,60 +45,48 @@ export default function AddServiceModal({ vendorId, onClose, onSuccess }: AddSer
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h2 className="text-2xl font-bold">Add New Service</h2>
-          <button
-            onClick={onClose}
-            className="text-gray-500 hover:text-gray-700 text-2xl"
-          >
-            ×
-          </button>
+    <Modal title="Add New Service" onClose={onClose}>
+      <form onSubmit={handleSubmit}>
+        <div className="mb-4">
+          <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+            Service Name
+          </label>
+          <input
+            type="text"
+            value={serviceName}
+            onChange={(e) => setServiceName(e.target.value)}
+            placeholder="e.g., Document Printing"
+            className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg bg-zinc-50 dark:bg-zinc-700 text-zinc-900 dark:text-zinc-100 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            required
+          />
+          <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-1">
+            Letters, numbers, spaces, and hyphens only.
+          </p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Service Name
-            </label>
-            <input
-              type="text"
-              value={serviceName}
-              onChange={(e) => setServiceName(e.target.value)}
-              placeholder="e.g., haircut, repair, consultation"
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              required
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Use letters, numbers, spaces, and hyphens only
-            </p>
+        {error && (
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg text-sm">
+            {error}
           </div>
+        )}
 
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 rounded-lg text-sm">
-              {error}
-            </div>
-          )}
-
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading || !serviceName.trim()}
-              className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Adding...' : 'Add Service'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="flex-1 px-4 py-2 border border-zinc-300 dark:border-zinc-600 rounded-lg hover:bg-zinc-100 dark:hover:bg-zinc-700 transition"
+          >
+            Cancel
+          </button>
+          <button
+            type="submit"
+            disabled={loading || !serviceName.trim()}
+            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+          >
+            {loading ? <LoadingSpinner /> : 'Add Service'}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }

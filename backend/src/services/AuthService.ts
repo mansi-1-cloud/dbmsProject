@@ -1,28 +1,60 @@
 import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
+import jwt, { Secret } from 'jsonwebtoken'; // <-- Import 'Secret' type
 import prisma from '../lib/prisma.js';
+import { z } from 'zod';
+import { 
+  registerUserSchema, 
+  registerVendorSchema, 
+  updateUserProfileSchema
+} from '../validators/schemas.js';
 import { AuthPayload } from '../types/index.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+// 🚨 SECURITY WARNING:
+// 'your-secret-key' is a weak, public default.
+// You MUST set a strong, random JWT_SECRET in your .env file.
+const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = '7d';
 
+if (!JWT_SECRET) {
+  console.error("FATAL ERROR: JWT_SECRET is not set in .env file.");
+  process.exit(1); // Stop the application if the secret is missing
+}
+
+// --- FIX #1 ---
+// We've already proven JWT_SECRET is a string, so
+// we cast it here for all class methods to use.
+const AppJwtSecret: Secret = JWT_SECRET;
+
+// Create types from your Zod schemas
+type RegisterUserData = z.infer<typeof registerUserSchema>;
+type RegisterVendorData = z.infer<typeof registerVendorSchema>;
+type UpdateUserProfileData = z.infer<typeof updateUserProfileSchema>;
+
 export class AuthService {
-  async registerUser(email: string, name: string, password: string) {
-    const hashedPassword = await bcrypt.hash(password, 10);
+
+  // ... (registerUser, registerVendor, loginUser, loginVendor methods are all fine) ...
+  // No changes needed for these methods.
+
+  /**
+   * Registers a new User
+   */
+  async registerUser(data: RegisterUserData) {
+    const hashedPassword = await bcrypt.hash(data.password, 10);
 
     const user = await prisma.user.create({
       data: {
-        email,
-        name,
+        email: data.email,
+        name: data.name,
         password: hashedPassword,
       },
     });
 
-    const token = this.generateToken({
+    const payload: AuthPayload = {
       id: user.id,
       email: user.email,
       role: 'USER',
-    });
+    };
+    const token = this.generateToken(payload);
 
     return {
       user: {
@@ -35,23 +67,27 @@ export class AuthService {
     };
   }
 
-  async registerVendor(email: string, name: string, password: string, services: string[]) {
-    const hashedPassword = await bcrypt.hash(password, 10);
+  /**
+   * Registers a new Vendor
+   */
+  async registerVendor(data: RegisterVendorData) {
+    const hashedPassword = await bcrypt.hash(data.password, 10);
 
     const vendor = await prisma.vendor.create({
       data: {
-        email,
-        name,
+        email: data.email,
+        name: data.name,
         password: hashedPassword,
-        services,
+        services: data.services,
       },
     });
 
-    const token = this.generateToken({
+    const payload: AuthPayload = {
       id: vendor.id,
       email: vendor.email,
       role: 'VENDOR',
-    });
+    };
+    const token = this.generateToken(payload);
 
     return {
       vendor: {
@@ -65,18 +101,23 @@ export class AuthService {
     };
   }
 
+  /**
+   * Logs in a User
+   */
   async loginUser(email: string, password: string) {
     const user = await prisma.user.findUnique({ where: { email } });
 
     if (!user || !(await bcrypt.compare(password, user.password))) {
-      throw new Error('Invalid credentials');
+      // This custom error will be caught by the router and turned into a 401
+      throw new Error('Invalid email or password');
     }
 
-    const token = this.generateToken({
+    const payload: AuthPayload = {
       id: user.id,
       email: user.email,
       role: 'USER',
-    });
+    };
+    const token = this.generateToken(payload);
 
     return {
       user: {
@@ -89,18 +130,22 @@ export class AuthService {
     };
   }
 
+  /**
+   * Logs in a Vendor
+   */
   async loginVendor(email: string, password: string) {
     const vendor = await prisma.vendor.findUnique({ where: { email } });
 
     if (!vendor || !(await bcrypt.compare(password, vendor.password))) {
-      throw new Error('Invalid credentials');
+      throw new Error('Invalid email or password');
     }
 
-    const token = this.generateToken({
+    const payload: AuthPayload = {
       id: vendor.id,
       email: vendor.email,
       role: 'VENDOR',
-    });
+    };
+    const token = this.generateToken(payload);
 
     return {
       vendor: {
@@ -114,12 +159,58 @@ export class AuthService {
     };
   }
 
-  generateToken(payload: AuthPayload): string {
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+  /**
+   * --- NEW METHOD ---
+   * Gets a user's profile by their ID.
+   */
+  async getUserProfile(userId: string) {
+    return prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phoneNumber: true,
+        address: true,
+        createdAt: true,
+      },
+    });
   }
 
+  /**
+   * --- NEW METHOD ---
+   * Updates a user's profile.
+   */
+  async updateUserProfile(userId: string, data: UpdateUserProfileData) {
+    return prisma.user.update({
+      where: { id: userId },
+      data: data,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        phoneNumber: true,
+        address: true,
+      },
+    });
+  }
+
+  /**
+   * Generates a new JWT
+   */
+  generateToken(payload: AuthPayload): string {
+    // --- FIX #2 ---
+    // Use the guaranteed-to-be-string 'AppJwtSecret'
+    return jwt.sign(payload, AppJwtSecret, { expiresIn: JWT_EXPIRES_IN });
+  }
+
+  /**
+   * Verifies a JWT (used by auth middleware)
+   */
   verifyToken(token: string): AuthPayload {
-    return jwt.verify(token, JWT_SECRET) as AuthPayload;
+    // --- FIX #3 ---
+    // Use 'AppJwtSecret' here as well
+    return jwt.verify(token, AppJwtSecret) as AuthPayload;
   }
 }
 

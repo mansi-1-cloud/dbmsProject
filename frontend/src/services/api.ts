@@ -1,16 +1,27 @@
-import { useAuthStore } from '../store/authStore';
+import { getDefaultStore } from 'jotai';
+import { tokenAtom } from '../store/authAtoms';
+import { UserProfile, Vendor } from '../types'; // Import types
 
-const API_BASE_URL = 'http://localhost:4000/api';
+// Use Vite's env variable, falling back to your new URL
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
+
+// Get the Jotai store instance
+const store = getDefaultStore();
 
 class ApiService {
   private getHeaders() {
-    const token = useAuthStore.getState().token;
+    // Get token from Jotai atom
+    const token = store.get(tokenAtom);
     return {
       'Content-Type': 'application/json',
       ...(token && { Authorization: `Bearer ${token}` }),
     };
   }
 
+  /**
+   * The core request helper.
+   * Handles auth headers, fetch, and error/response parsing.
+   */
   private async request(endpoint: string, options: RequestInit = {}) {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
       ...options,
@@ -20,16 +31,28 @@ class ApiService {
       },
     });
 
+    // Handle 204 No Content (e.g., from a DELETE)
+    if (response.status === 204) {
+      return null;
+    }
+
     const data = await response.json();
 
     if (!response.ok) {
+      // If validation errors exist, format them nicely
+      if (data.issues && Array.isArray(data.issues)) {
+        const errorMessages = data.issues.map((issue: any) => 
+          `${issue.path.join('.')}: ${issue.message}`
+        ).join(', ');
+        throw new Error(`${data.error}: ${errorMessages}`);
+      }
       throw new Error(data.error || 'Request failed');
     }
 
     return data;
   }
 
-  // Auth
+  // --- Auth ---
   async registerUser(email: string, name: string, password: string) {
     return this.request('/auth/register/user', {
       method: 'POST',
@@ -58,8 +81,8 @@ class ApiService {
     });
   }
 
-  // Vendors
-  async getVendors() {
+  // --- Vendors ---
+  async getVendors(): Promise<Vendor[]> {
     return this.request('/vendors');
   }
 
@@ -71,7 +94,7 @@ class ApiService {
     return this.request(`/vendors/${vendorId}/pending`);
   }
 
-  // Tokens
+  // --- Tokens ---
   async createToken(vendorId: string, serviceType: string, subject: string, description: string, params?: any) {
     return this.request('/tokens', {
       method: 'POST',
@@ -106,8 +129,8 @@ class ApiService {
     });
   }
 
-  // Vendor Service Management
-  async getVendorProfile(vendorId: string) {
+  // --- Vendor Service Management ---
+  async getVendorProfile(vendorId: string): Promise<Vendor> {
     return this.request(`/vendors/${vendorId}/profile`);
   }
 
@@ -131,7 +154,7 @@ class ApiService {
     });
   }
 
-  // Token Actions
+  // --- Token Actions ---
   async cancelToken(tokenId: string) {
     return this.request(`/tokens/${tokenId}/cancel`, {
       method: 'POST',
@@ -144,19 +167,19 @@ class ApiService {
     });
   }
 
-  // Profile Management
-  async getUserProfile() {
+  // --- Profile Management ---
+  async getUserProfile(): Promise<UserProfile> {
     return this.request('/auth/user/profile');
   }
 
-  async updateUserProfile(data: { name?: string; phoneNumber?: string; address?: string }) {
+  async updateUserProfile(data: Partial<UserProfile>): Promise<UserProfile> {
     return this.request('/auth/user/profile', {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
   }
 
-  async updateVendorProfile(vendorId: string, data: { name?: string; phoneNumber?: string; address?: string }) {
+  async updateVendorProfile(vendorId: string, data: Partial<Vendor>): Promise<Vendor> {
     return this.request(`/vendors/${vendorId}/profile`, {
       method: 'PATCH',
       body: JSON.stringify(data),
@@ -165,3 +188,4 @@ class ApiService {
 }
 
 export const api = new ApiService();
+

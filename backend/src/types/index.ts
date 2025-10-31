@@ -1,9 +1,19 @@
 import { Request } from 'express';
 
+
+// --- NEW/UPDATED ---
+// Define the roles as a specific union type.
+// This ensures we can't make a typo (e.g., requireRole('USR'))
+export type Role = 'USER' | 'VENDOR' | 'ADMIN'; // Add any other roles you have
+
 export interface AuthPayload {
   id: string;
   email: string;
-  role: 'USER' | 'VENDOR';
+  role: Role; // Use the specific 'Role' type here
+}
+
+export interface AuthRequest extends Request {
+  user?: AuthPayload;
 }
 
 export interface AuthRequest extends Request {
@@ -28,15 +38,29 @@ export interface TokenWithETA {
   };
 }
 
+/**
+ * --- UPDATED ---
+ * Represents the raw data needed for scheduling.
+ * 'estimatedDuration' was removed as it's calculated by the strategy.
+ * 'tokenId' was changed to 'id' for consistency with Prisma.
+ */
 export interface QueueToken {
-  tokenId: string;
+  id: string;
   serviceType: string;
-  estimatedDuration: number; // in minutes
   createdAt: Date;
 }
 
+/**
+ * --- UPDATED ---
+ * The "contract" for all scheduling strategies.
+ * 'getEstimatedDuration' is now required, fixing the error.
+ */
 export interface SchedulingStrategy {
-  name: string;
+  readonly name: string;
+  
   calculateQueue(tokens: QueueToken[]): QueueToken[];
+  
   estimateCompletion(queuePosition: number, tokens: QueueToken[]): Date;
+  
+  getEstimatedDuration(serviceType: string): number;
 }

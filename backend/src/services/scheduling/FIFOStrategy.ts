@@ -1,10 +1,14 @@
 import { SchedulingStrategy, QueueToken } from '../../types/index.js';
 
 export class FIFOStrategy implements SchedulingStrategy {
-  name = 'FIFO';
+  readonly name = 'FIFO';
 
-  // Service type to estimated duration mapping (in minutes)
-  private serviceDurations: Record<string, number> = {
+  // --- Change 1: Made this 'static' and 'readonly' ---
+  // Service durations are configuration, not instance state.
+  // 'static' means it's shared by all instances of the class.
+  // 'readonly' prevents it from being modified after initialization.
+  // We also use UPPER_SNAKE_CASE for constants.
+  private static readonly SERVICE_DURATIONS: Record<string, number> = {
     'printing': 10,
     'binding': 15,
     'lamination': 8,
@@ -13,28 +17,33 @@ export class FIFOStrategy implements SchedulingStrategy {
     'default': 10,
   };
 
+  /**
+   * Calculates the queue order.
+   * NOTE: Returns a new, sorted array and does NOT mutate the original.
+   */
   calculateQueue(tokens: QueueToken[]): QueueToken[] {
-    // FIFO: Sort by creation time (oldest first)
-    return tokens.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
+    // --- Change 2: Use spread '[...tokens]' to create a copy ---
+    // This prevents mutating the original 'tokens' array, which can
+    // cause hard-to-find bugs in other parts of your application.
+    return [...tokens].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   }
 
+  /**
+   * Estimates the completion time for a token at a given position.
+   */
   estimateCompletion(queuePosition: number, tokens: QueueToken[]): Date {
     const sortedQueue = this.calculateQueue(tokens);
-    
-    // Calculate cumulative time for all tokens before this position
-    let cumulativeMinutes = 0;
-    for (let i = 0; i < queuePosition && i < sortedQueue.length; i++) {
-      const token = sortedQueue[i];
-      const duration = this.serviceDurations[token.serviceType] || this.serviceDurations['default'];
-      cumulativeMinutes += duration;
-    }
 
-    // Add estimated duration for the current token
-    if (queuePosition < sortedQueue.length) {
-      const currentToken = sortedQueue[queuePosition];
-      const duration = this.serviceDurations[currentToken.serviceType] || this.serviceDurations['default'];
-      cumulativeMinutes += duration;
-    }
+    // --- Change 3: Use .slice() and .reduce() for cleaner logic ---
+    // This is more declarative and less error-prone than a manual for-loop.
+    // 1. Get all tokens from the start up to (and including) the current position.
+    // 2. Sum their estimated durations.
+    const cumulativeMinutes = sortedQueue
+      .slice(0, queuePosition + 1)
+      .reduce((totalMinutes, token) => {
+        // --- Change 4: Reuse the getEstimatedDuration method ---
+        return totalMinutes + this.getEstimatedDuration(token.serviceType);
+      }, 0);
 
     const estimatedCompletion = new Date();
     estimatedCompletion.setMinutes(estimatedCompletion.getMinutes() + cumulativeMinutes);
@@ -42,7 +51,12 @@ export class FIFOStrategy implements SchedulingStrategy {
     return estimatedCompletion;
   }
 
+  /**
+   * Gets the estimated duration for a single service type.
+   */
   getEstimatedDuration(serviceType: string): number {
-    return this.serviceDurations[serviceType] || this.serviceDurations['default'];
+    // --- Change 5: Refer to the static constant ---
+    return FIFOStrategy.SERVICE_DURATIONS[serviceType] 
+        || FIFOStrategy.SERVICE_DURATIONS['default'];
   }
 }
