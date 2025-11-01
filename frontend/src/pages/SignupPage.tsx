@@ -2,10 +2,10 @@
 
 import React from "react";
 import { motion } from "framer-motion";
-import { Mail, Lock } from "lucide-react";
+import { Mail, Lock, User } from "lucide-react";
 
-// --- Main Login Page Component ---
-export function LoginPage() {
+// --- Main Signup Page Component ---
+export function SignupPage() {
   return (
     <div className="flex min-h-screen w-full bg-black text-white">
       {/* --- Left Column: Form (Half width on medium screens and up) --- */}
@@ -21,7 +21,7 @@ export function LoginPage() {
             transition={{ duration: 0.3 }}
             className="text-3xl font-bold mb-2 text-white"
           >
-            Welcome back!
+            Create account
           </motion.h1>
 
           {/* Subtitle */}
@@ -32,6 +32,32 @@ export function LoginPage() {
 
           {/* Form */}
           <form className="flex flex-col gap-4">
+            {/* Name Field */}
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{
+                opacity: 1,
+                y: 0,
+              }}
+              transition={{ duration: 0.3 }}
+            >
+              <label
+                htmlFor="name"
+                className="block text-sm font-medium text-gray-400 mb-1"
+              >
+                Name
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                <input
+                  type="text"
+                  id="name"
+                  placeholder="Enter your name"
+                  className="w-full bg-gray-900 border border-gray-700 rounded-md p-3 pl-10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </motion.div>
+
             {/* Email Field */}
             <div>
               <label
@@ -75,18 +101,18 @@ export function LoginPage() {
               type="submit"
               className="w-full bg-white text-black font-bold py-3 rounded-md hover:bg-gray-200 transition-colors mt-4"
             >
-              Sign in
+              Sign up
             </button>
           </form>
 
           {/* Toggle Link */}
           <p className="text-center text-sm text-gray-400 mt-8">
-            Dont have an account?{" "}
+            Already have an account?{" "}
             <a
-              href="/signup" 
+              href="/login" // Simple link to the login page
               className="font-semibold text-white hover:underline"
             >
-              Sign up
+              Sign in
             </a>
           </p>
         </div>

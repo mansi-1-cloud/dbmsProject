@@ -13,6 +13,7 @@
   "dependencies": {
     "@headlessui/react": "^2.2.9",
     "@heroicons/react": "^2.2.0",
+    "@tabler/icons-react": "^3.35.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "jotai": "^2.15.0",
@@ -24,6 +25,7 @@
     "socket.io-client": "^4.7.5",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
+    "vite-tsconfig-paths": "^5.1.4",
     "zustand": "^4.5.2"
   },
   "devDependencies": {

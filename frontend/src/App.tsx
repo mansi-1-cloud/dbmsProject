@@ -1,14 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
-import LandingPage from './pages/LandingPage';
-import LoginPage from './pages/LoginPage';
-import RegisterPage from './pages/RegisterPage';
 import UserDashboard from './pages/UserDashboard';
-import VendorDashboard from './pages/VendorDashboard';
 import UserProfile from './pages/UserProfile';
 import VendorProfile from './pages/VendorProfile';
-import HeroSectionOne from './components/hero-section-demo-1';
-import { FollowerPointerCard, FollowPointer } from './components/ui/following-pointer';
+import { VendorDashboard } from './pages/VendorDash';
+import { SignupPage } from './pages/SignupPage';
+import { LoginPage } from './pages/LoginPage';
+import HeroSection from './components/hero-section-demo-1';
 
 function App() {
   const { user, isAuthenticated } = useAuth();
@@ -16,12 +14,14 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<LandingPage />} />
+        <Route path="/" element={<UserDashboard />} />
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="hero" element={<HeroSectionOne/>} />
+        <Route path="/register" element={<SignupPage />} />
+        <Route path="/hero" element={<HeroSection/>} />
+        <Route path="/signup" element={<SignupPage/>} />
 
-        <Route path='following' element={<FollowerPointerCard{,,"Garv"}/>} />
+
+        {/* <Route path='following' element={<FollowerPointerCard{,,"Garv"}/>} /> */}
         <Route 
           path="/user/dashboard" 
           element={
@@ -39,13 +39,13 @@ function App() {
               : <Navigate to="/login" />
           } 
         />
-        
+        pages
         <Route 
           path="/vendor/dashboard" 
           element={
             isAuthenticated && user?.role === 'VENDOR' 
               ? <VendorDashboard /> 
-              : <Navigate to="/login" />
+              : <Navigate to="/hero" />
           } 
         />
         
