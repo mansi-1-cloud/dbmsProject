@@ -43,20 +43,53 @@ type Card = {
   description: string;
   ctaText: string;
   token: TokenWithUser;
-  component: React.ComponentType<{ token: TokenWithUser }>;
+  component: React.ComponentType<{ 
+    token: TokenWithUser;
+    onApprove?: (tokenId: string) => void;
+    onReject?: (tokenId: string) => void;
+    onComplete?: (tokenId: string) => void;
+    isLoading?: boolean;
+  }>;
+  onApprove?: (tokenId: string) => void;
+  onReject?: (tokenId: string) => void;
+  onComplete?: (tokenId: string) => void;
+  isLoading?: boolean;
 };
 
 // --- Main Vendor Dashboard Component ---
 export function VendorDashboard() {
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    if (!user || user.role !== "VENDOR") {
+    // Wait for auth to be checked from localStorage
+    const timer = setTimeout(() => {
+      setIsInitialized(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (isInitialized && (!isAuthenticated || !user || user.role !== "VENDOR")) {
       navigate("/login", { replace: true });
     }
-  }, [user, navigate]);
+  }, [isInitialized, isAuthenticated, user, navigate]);
+
+  // Show loading while checking auth
+  if (!isInitialized) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    );
+  }
+
+  // If no user after initialization, render nothing (will redirect)
+  if (!user) {
+    return null;
+  }
 
   const handleLogout = () => {
     socket.disconnect();
@@ -65,16 +98,6 @@ export function VendorDashboard() {
   };
 
   const links = [
-    {
-      label: "Dashboard",
-      href: "#",
-      icon: <IconBrandTabler className="h-5 w-5 shrink-0 text-neutral-700" />,
-    },
-    {
-      label: "Requests",
-      href: "#requests",
-      icon: <IconClipboardList className="h-5 w-5 shrink-0 text-neutral-700" />,
-    },
     {
       label: "Profile",
       href: "/vendor/profile",
@@ -144,22 +167,73 @@ const VendorDashboardContent = ({ vendorId, vendorName }: { vendorId: string; ve
     completedTotal: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const handleApprove = async (tokenId: string) => {
+    setActionLoading(tokenId);
+    try {
+      await api.approveToken(tokenId);
+      await refreshData({ silent: true });
+    } catch (error: any) {
+      console.error("Failed to approve token:", error);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleReject = async (tokenId: string) => {
+    setActionLoading(tokenId);
+    try {
+      console.log("Rejecting token:", tokenId);
+      await api.rejectToken(tokenId, ""); // Empty reason for smooth transition
+      console.log("Reject successful, refreshing data...");
+      await refreshData({ silent: true });
+      console.log("Refresh complete");
+    } catch (error: any) {
+      console.error("Failed to reject token:", error);
+      console.error("Error details:", error.response || error.message);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleComplete = async (tokenId: string) => {
+    setActionLoading(tokenId);
+    try {
+      await api.completeToken(tokenId);
+      await refreshData({ silent: true });
+    } catch (error: any) {
+      console.error("Failed to complete token:", error);
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const refreshData = useCallback(
     async (options?: { silent?: boolean }) => {
-      if (!vendorId) return;
+      if (!vendorId) {
+        console.log("No vendorId provided");
+        return;
+      }
       const silent = options?.silent ?? false;
       if (!silent) {
         setLoading(true);
       }
       try {
+        console.log("Fetching vendor dashboard data for:", vendorId);
         const [pendingData, queueData, statsData] = await Promise.all([
           api.getVendorPending(vendorId),
           api.getVendorQueue(vendorId),
           api.getVendorStats(vendorId),
         ]);
-        setPending(pendingData);
-        setQueue(queueData);
+        console.log("Vendor Dashboard Data:", { pendingData, queueData, statsData });
+        // Sort by creation time (oldest first)
+        setPending(pendingData.sort((a, b) => 
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        ));
+        setQueue(queueData.sort((a, b) => 
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        ));
         setStats(statsData);
       } catch (error) {
         console.error("Failed to load vendor dashboard data", error);
@@ -203,12 +277,12 @@ const VendorDashboardContent = ({ vendorId, vendorName }: { vendorId: string; ve
   }, [vendorId, refreshData]);
 
   const pendingCards = useMemo(
-    () => pending.map((token) => createCard(token, "pending")),
-    [pending]
+    () => pending.map((token, index) => createCard(token, "pending", handleApprove, handleReject, handleComplete, actionLoading, index + 1)),
+    [pending, actionLoading]
   );
   const queueCards = useMemo(
-    () => queue.map((token) => createCard(token, "queue")),
-    [queue]
+    () => queue.map((token, index) => createCard(token, "queue", handleApprove, handleReject, handleComplete, actionLoading, index + 1)),
+    [queue, actionLoading]
   );
 
   if (!vendorId) {
@@ -290,13 +364,24 @@ const formatDateTime = (date?: string | null) => {
   }
 };
 
-const createCard = (token: TokenWithUser, context: "pending" | "queue"): Card => {
+const createCard = (
+  token: TokenWithUser, 
+  context: "pending" | "queue",
+  onApprove?: (tokenId: string) => void,
+  onReject?: (tokenId: string) => void,
+  onComplete?: (tokenId: string) => void,
+  loadingTokenId?: string | null,
+  position?: number
+): Card => {
   const serviceLabel = capitalizeWords(token.serviceType ?? "service");
   const title = token.subject?.trim() ? token.subject : `${serviceLabel} request`;
   const baseDescription = token.description?.trim() || `Awaiting ${serviceLabel.toLowerCase()} details.`;
-  const description = context === "queue"
-    ? `Queue position: ${token.queuePosition ?? "N/A"}. ${truncateText(baseDescription)}`
-    : truncateText(baseDescription);
+  
+  // Add position number to description
+  const positionText = position ? `#${position}` : "";
+  const queuePositionText = context === "queue" ? `Queue position: ${token.queuePosition ?? "N/A"}` : "";
+  const descriptionParts = [positionText, queuePositionText, truncateText(baseDescription)].filter(Boolean);
+  const description = descriptionParts.join(". ");
 
   return {
     id: token.id,
@@ -305,6 +390,10 @@ const createCard = (token: TokenWithUser, context: "pending" | "queue"): Card =>
     ctaText: "View details",
     token,
     component: ProjectProposalReviewContent,
+    onApprove: context === "pending" ? onApprove : undefined,
+    onReject: context === "pending" ? onReject : undefined,
+    onComplete: context === "queue" ? onComplete : undefined,
+    isLoading: loadingTokenId === token.id,
   };
 };
 
@@ -413,7 +502,13 @@ function ExpandableCardDemo({ cards }: { cards: Card[] }) {
                   exit={{ opacity: 0 }}
                   className="text-neutral-700 text-sm lg:text-base h-auto md:h-fit pb-10 flex flex-col items-start gap-4 overflow-auto"
                 >
-                  <active.component token={active.token} />
+                  <active.component 
+                    token={active.token} 
+                    onApprove={active.onApprove}
+                    onReject={active.onReject}
+                    onComplete={active.onComplete}
+                    isLoading={active.isLoading}
+                  />
                 </motion.div>
               </div>
             </motion.div>
@@ -472,14 +567,64 @@ export const CloseIcon = () => (
 );
 
 // --- Project Proposal Review Template (dynamic) ---
-const ProjectProposalReviewContent = ({ token }: { token: TokenWithUser }) => {
+const ProjectProposalReviewContent = ({ 
+  token, 
+  onApprove, 
+  onReject,
+  onComplete,
+  isLoading 
+}: { 
+  token: TokenWithUser;
+  onApprove?: (tokenId: string) => void;
+  onReject?: (tokenId: string) => void;
+  onComplete?: (tokenId: string) => void;
+  isLoading?: boolean;
+}) => {
+  const [timeDisplay, setTimeDisplay] = React.useState<string>("");
+
+  React.useEffect(() => {
+    // Timer for IN_PROGRESS/QUEUED status showing remaining time
+    if (token.status !== "IN_PROGRESS" && token.status !== "QUEUED") return;
+    if (!token.estimatedCompletion) return;
+
+    const updateTimer = () => {
+      const now = Date.now();
+      const endTime = new Date(token.estimatedCompletion!).getTime();
+      const diff = endTime - now;
+      
+      if (diff <= 0) {
+        setTimeDisplay("Overdue");
+        return;
+      }
+      
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeDisplay(`${hours}h ${minutes}m ${seconds}s`);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [token.status, token.estimatedCompletion]);
   const serviceLabel = capitalizeWords(token.serviceType ?? "Service");
   const queuePosition = token.queuePosition ? `#${token.queuePosition}` : "Not queued";
   const eta = token.estimatedCompletion ? formatDateTime(token.estimatedCompletion) : "Not available";
   const statusLabel = capitalizeWords(token.status.toLowerCase().replace(/_/g, " "));
+  const isPending = token.status === "PENDING";
+  const isInQueue = token.status === "QUEUED" || token.status === "IN_PROGRESS";
 
   return (
     <div className="w-full">
+      {timeDisplay && isInQueue && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm font-semibold text-blue-700">
+            <IconClock className="inline h-4 w-4 mr-1" />
+            Time Remaining: {timeDisplay}
+          </p>
+        </div>
+      )}
+
       <section className="space-y-2">
         <h4 className="text-sm font-bold uppercase text-gray-400">Request Summary</h4>
         <p className="text-sm text-gray-700">
@@ -531,6 +676,38 @@ const ProjectProposalReviewContent = ({ token }: { token: TokenWithUser }) => {
           </p>
         )}
       </section>
+
+      {isPending && onApprove && onReject && (
+        <section className="mt-6 flex gap-3">
+          <button
+            onClick={() => onReject(token.id)}
+            disabled={isLoading}
+            className="flex-1 px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          >
+            {isLoading ? "Processing..." : "Reject Request"}
+          </button>
+          <button
+            onClick={() => onApprove(token.id)}
+            disabled={isLoading}
+            className="flex-1 px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+          >
+            {isLoading ? "Processing..." : "Approve & Add to Queue"}
+          </button>
+        </section>
+      )}
+
+      {isInQueue && onComplete && (
+        <section className="mt-6">
+          <button
+            onClick={() => onComplete(token.id)}
+            disabled={isLoading}
+            className="w-full px-4 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium flex items-center justify-center gap-2"
+          >
+            <IconCircleCheck className="h-5 w-5" />
+            {isLoading ? "Processing..." : "Mark as Completed"}
+          </button>
+        </section>
+      )}
     </div>
   );
 };

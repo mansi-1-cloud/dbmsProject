@@ -52,6 +52,48 @@ router.get('/user/me', authenticate, requireRole('USER'), async (req: AuthReques
   }
 });
 
+// Get user's pending tokens
+router.get('/user/:userId/pending', authenticate, requireRole('USER'), async (req: AuthRequest, res: Response) => {
+  try {
+    // Ensure user can only access their own data
+    if (req.user!.id !== req.params.userId) {
+      return res.status(403).json({ error: 'Forbidden: You can only access your own data' });
+    }
+    const tokens = await tokenService.getUserPendingTokens(req.params.userId);
+    res.json(tokens);
+  } catch (error: any) {
+    handleError(error, res);
+  }
+});
+
+// Get user's history (completed/rejected tokens)
+router.get('/user/:userId/history', authenticate, requireRole('USER'), async (req: AuthRequest, res: Response) => {
+  try {
+    // Ensure user can only access their own data
+    if (req.user!.id !== req.params.userId) {
+      return res.status(403).json({ error: 'Forbidden: You can only access your own data' });
+    }
+    const tokens = await tokenService.getUserHistoryTokens(req.params.userId);
+    res.json(tokens);
+  } catch (error: any) {
+    handleError(error, res);
+  }
+});
+
+// Get user's stats
+router.get('/user/:userId/stats', authenticate, requireRole('USER'), async (req: AuthRequest, res: Response) => {
+  try {
+    // Ensure user can only access their own data
+    if (req.user!.id !== req.params.userId) {
+      return res.status(403).json({ error: 'Forbidden: You can only access your own data' });
+    }
+    const stats = await tokenService.getUserStats(req.params.userId);
+    res.json(stats);
+  } catch (error: any) {
+    handleError(error, res);
+  }
+});
+
 // Vendor approves token
 router.post('/:id/approve', authenticate, requireRole('VENDOR'), async (req: AuthRequest, res: Response) => {
   try {

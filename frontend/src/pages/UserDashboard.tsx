@@ -8,12 +8,12 @@ import {
   IconBrandTabler,
   IconUser,
   IconClipboardList,
-  IconUsers,
   IconClock,
   IconCircleCheck,
   IconMail,
   IconPhone,
   IconMapPin,
+  IconPlus, // Added for the new button
 } from "@tabler/icons-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -22,17 +22,22 @@ import { useAuth } from "@/hooks/useAuth";
 import { api } from "@/services/api";
 import { socket } from "@/services/socket";
 import type { Token } from "@/types";
+import CreateTokenModal from "@/components/CreateTokenModal";
 
-type TokenWithUser = Token & {
-  user?: {
+// Renamed: A user looks at a token associated with a vendor
+type TokenWithVendor = Token & {
+  vendor?: {
     name: string;
     email: string;
+    phoneNumber?: string;
+    address?: string;
   };
+  completedAt?: string | null; // Added for "previous requests" tab
 };
 
+// Updated: Removed activeCount, added completedTotal
 type DashboardStats = {
   pendingCount: number;
-  activeCount: number;
   completedToday: number;
   completedTotal: number;
 };
@@ -42,21 +47,53 @@ type Card = {
   title: string;
   description: string;
   ctaText: string;
-  token: TokenWithUser;
-  component: React.ComponentType<{ token: TokenWithUser }>;
+  token: TokenWithVendor; // Updated type
+  component: React.ComponentType<{ 
+    token: TokenWithVendor;
+    onCancel?: (tokenId: string) => void;
+    onDelete?: (tokenId: string) => void;
+    isLoading?: boolean;
+  }>; // Updated type
+  onCancel?: (tokenId: string) => void;
+  onDelete?: (tokenId: string) => void;
+  isLoading?: boolean;
 };
 
-// --- Main Vendor Dashboard Component ---
+// --- Main User Dashboard Component ---
 export function UserDashboard() {
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    if (!user || user.role !== "VENDOR") {
+    // Wait for auth to be checked from localStorage
+    const timer = setTimeout(() => {
+      setIsInitialized(true);
+    }, 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    // UPDATED: Check for "USER" role
+    if (isInitialized && (!isAuthenticated || !user || user.role !== "USER")) {
       navigate("/login", { replace: true });
     }
-  }, [user, navigate]);
+  }, [isInitialized, isAuthenticated, user, navigate]);
+
+  // Show loading while checking auth
+  if (!isInitialized) {
+    return (
+      <div className="flex h-screen items-center justify-center">
+        <p className="text-gray-600">Loading...</p>
+      </div>
+    );
+  }
+
+  // If no user after initialization, render nothing (will redirect)
+  if (!user) {
+    return null;
+  }
 
   const handleLogout = () => {
     socket.disconnect();
@@ -64,20 +101,11 @@ export function UserDashboard() {
     navigate("/login", { replace: true });
   };
 
+  // UPDATED: Links for a user
   const links = [
     {
-      label: "Dashboard",
-      href: "#",
-      icon: <IconBrandTabler className="h-5 w-5 shrink-0 text-neutral-700" />,
-    },
-    {
-      label: "Requests",
-      href: "#requests",
-      icon: <IconClipboardList className="h-5 w-5 shrink-0 text-neutral-700" />,
-    },
-    {
       label: "Profile",
-      href: "/vendor/profile",
+      href: "/user/profile", // Updated href
       icon: <IconUser className="h-5 w-5 shrink-0 text-neutral-700" />,
     },
   ];
@@ -111,17 +139,18 @@ export function UserDashboard() {
           </div>
         </SidebarBody>
       </Sidebar>
-      <VendorDashboardContent vendorId={user?.id ?? ""} vendorName={user?.name ?? "Vendor"} />
+      {/* UPDATED: Component and props */}
+      <UserDashboardContent userId={user?.id ?? ""} userName={user?.name ?? "User"} />
     </div>
   );
 }
 
-// --- Logo Components ---
+// --- Logo Components (Unchanged) ---
 export const Logo = () => (
   <a href="#" className="relative z-20 flex items-center space-x-2 py-1 text-sm font-normal text-black">
     <div className="h-5 w-6 shrink-0 rounded-tl-lg rounded-tr-sm rounded-br-lg rounded-bl-sm bg-black" />
     <motion.span initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="font-medium whitespace-pre text-black">
-      Vendor Menu
+      User Menu
     </motion.span>
   </a>
 );
@@ -132,44 +161,78 @@ export const LogoIcon = () => (
   </a>
 );
 
-// --- Main Dashboard Content Component ---
-const VendorDashboardContent = ({ vendorId, vendorName }: { vendorId: string; vendorName: string }) => {
-  const [activeTab, setActiveTab] = useState<"pending" | "queue">("pending");
-  const [pending, setPending] = useState<TokenWithUser[]>([]);
-  const [queue, setQueue] = useState<TokenWithUser[]>([]);
+// --- Main Dashboard Content Component (Renamed and Updated) ---
+const UserDashboardContent = ({ userId, userName }: { userId: string; userName: string }) => {
+  // UPDATED: Tab state
+  const [activeTab, setActiveTab] = useState<"pending" | "previous">("pending");
+  const [pending, setPending] = useState<TokenWithVendor[]>([]);
+  // RENAMED: from queue to previousRequests
+  const [previousRequests, setPreviousRequests] = useState<TokenWithVendor[]>([]);
+  // UPDATED: Stats state
   const [stats, setStats] = useState<DashboardStats>({
     pendingCount: 0,
-    activeCount: 0,
     completedToday: 0,
     completedTotal: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  const handleCancel = async (tokenId: string) => {
+    setActionLoading(tokenId);
+    try {
+      await api.cancelToken(tokenId);
+      await refreshData({ silent: true });
+    } catch (error: any) {
+      console.error("Failed to cancel token:", error);
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  const handleDelete = async (tokenId: string) => {
+    setActionLoading(tokenId);
+    try {
+      await api.deleteToken(tokenId);
+      await refreshData({ silent: true });
+    } catch (error: any) {
+      console.error("Failed to delete token:", error);
+    } finally {
+      setActionLoading(null);
+    }
+  };
 
   const refreshData = useCallback(
     async (options?: { silent?: boolean }) => {
-      if (!vendorId) return;
+      if (!userId) return;
       const silent = options?.silent ?? false;
       if (!silent) {
         setLoading(true);
       }
       try {
-        const [pendingData, queueData, statsData] = await Promise.all([
-          api.getVendorPending(vendorId),
-          api.getVendorQueue(vendorId),
-          api.getVendorStats(vendorId),
+        // UPDATED: API calls for user
+        const [pendingData, historyData, statsData] = await Promise.all([
+          api.getUserPending(userId),
+          api.getUserHistory(userId), // Changed from getVendorQueue
+          api.getUserStats(userId),
         ]);
-        setPending(pendingData);
-        setQueue(queueData);
+        // Sort by creation time (oldest first)
+        setPending(pendingData.sort((a, b) => 
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        ));
+        setPreviousRequests(historyData.sort((a, b) => 
+          new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+        )); // Updated state
         setStats(statsData);
       } catch (error) {
-        console.error("Failed to load vendor dashboard data", error);
+        console.error("Failed to load user dashboard data", error);
       } finally {
         if (!silent) {
           setLoading(false);
         }
       }
     },
-    [vendorId]
+    [userId]
   );
 
   useEffect(() => {
@@ -177,44 +240,40 @@ const VendorDashboardContent = ({ vendorId, vendorName }: { vendorId: string; ve
   }, [refreshData]);
 
   useEffect(() => {
-    if (!vendorId) return;
+    if (!userId) return;
     socket.connect();
 
     const handleRefresh = () => {
       refreshData({ silent: true });
     };
 
-    const handleQueueUpdate = (tokens: TokenWithUser[]) => {
-      setQueue(tokens);
-      setStats((prev) => ({ ...prev, activeCount: tokens.length }));
-      refreshData({ silent: true });
-    };
-
-    socket.on("token.created", handleRefresh);
+    // UPDATED: Socket events for a user
+    socket.on("token.created", handleRefresh); // Refresh when user creates one
+    socket.on("token.updated", handleRefresh); // Refresh when vendor updates status
     socket.on("token.cancelled", handleRefresh);
-    socket.on("queue.update", handleQueueUpdate);
 
     return () => {
       socket.off("token.created", handleRefresh);
+      socket.off("token.updated", handleRefresh);
       socket.off("token.cancelled", handleRefresh);
-      socket.off("queue.update", handleQueueUpdate);
       socket.disconnect();
     };
-  }, [vendorId, refreshData]);
+  }, [userId, refreshData]);
 
   const pendingCards = useMemo(
-    () => pending.map((token) => createCard(token, "pending")),
-    [pending]
+    () => pending.map((token, index) => createCard(token, "pending", handleCancel, handleDelete, actionLoading, index + 1)),
+    [pending, actionLoading]
   );
-  const queueCards = useMemo(
-    () => queue.map((token) => createCard(token, "queue")),
-    [queue]
+  // RENAMED: from queueCards to previousCards
+  const previousCards = useMemo(
+    () => previousRequests.map((token, index) => createCard(token, "previous", handleCancel, handleDelete, actionLoading, index + 1)),
+    [previousRequests, actionLoading]
   );
 
-  if (!vendorId) {
+  if (!userId) {
     return (
       <div className="flex flex-1 items-center justify-center">
-        <p className="text-gray-600">Vendor information missing.</p>
+        <p className="text-gray-600">User information missing.</p>
       </div>
     );
   }
@@ -224,54 +283,78 @@ const VendorDashboardContent = ({ vendorId, vendorName }: { vendorId: string; ve
   }
 
   const isPending = activeTab === "pending";
-  const cardsToDisplay = isPending ? pendingCards : queueCards;
+  // UPDATED: Card display logic
+  const cardsToDisplay = isPending ? pendingCards : previousCards;
 
   return (
     <div className="flex flex-1 h-full" id="requests">
       <div className="flex h-full w-full flex-1 flex-col overflow-y-auto">
-        <div className="bg-white p-4 border-b border-gray-200 flex justify-between items-center">
-          <h1 className="text-xl font-semibold text-black">Vendor Dashboard</h1>
+        {/* UPDATED: Header */}
+        <div className="bg-white p-4 border-b border-gray-200">
+          <h1 className="text-xl font-semibold text-black">User Dashboard</h1>
         </div>
 
         <div className="p-4 md:p-10">
-          <h2 className="text-2xl font-bold text-black">Welcome, {vendorName}!</h2>
-          <p className="text-gray-600 mb-6">Manage incoming requests and track your queue.</p>
+          <h2 className="text-2xl font-bold text-black">Welcome, {userName}!</h2>
+          <p className="text-gray-600 mb-6">Track your requests and manage your profile.</p>
 
+          {/* UPDATED: Stat cards grid */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <StatCard title="Pending Requests" value={stats.pendingCount} icon={<IconUsers className="h-6 w-6 text-blue-500" />} />
-            <StatCard title="In Queue" value={stats.activeCount} icon={<IconClock className="h-6 w-6 text-yellow-500" />} />
+            <StatCard title="Pending Requests" value={stats.pendingCount} icon={<IconClock className="h-6 w-6 text-yellow-500" />} />
             <StatCard title="Completed Today" value={stats.completedToday} icon={<IconCircleCheck className="h-6 w-6 text-green-500" />} />
+            <StatCard title="Total Completed" value={stats.completedTotal} icon={<IconClipboardList className="h-6 w-6 text-blue-500" />} />
           </div>
 
-          <div className="flex border-b border-gray-200 mb-6">
-            <TabButton
-              title="Pending Requests"
-              count={pendingCards.length}
-              isActive={isPending}
-              onClick={() => setActiveTab("pending")}
-            />
-            <TabButton
-              title="Current Queue"
-              count={queueCards.length}
-              isActive={!isPending}
-              onClick={() => setActiveTab("queue")}
-            />
+          <div className="flex justify-between items-center border-b border-gray-200 mb-6">
+            <div className="flex">
+              <TabButton
+                title="Pending Requests"
+                count={pendingCards.length}
+                isActive={isPending}
+                onClick={() => setActiveTab("pending")}
+              />
+              {/* UPDATED: Tab for "Previous Requests" */}
+              <TabButton
+                title="Previous Requests"
+                count={previousCards.length}
+                isActive={!isPending}
+                onClick={() => setActiveTab("previous")}
+              />
+            </div>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-500 text-white font-medium text-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-green-500 focus:ring-offset-2 mb-2"
+            >
+              <IconPlus className="h-4 w-4" />
+              Create Request
+            </button>
           </div>
 
           <div className="bg-white rounded-lg p-4 md:p-6">
             {cardsToDisplay.length === 0 ? (
-              <EmptyState message={isPending ? "No pending requests right now." : "The queue is currently empty."} />
+              // UPDATED: Empty state message
+              <EmptyState message={isPending ? "You have no pending requests." : "No previous requests found."} />
             ) : (
               <ExpandableCardDemo cards={cardsToDisplay} />
             )}
           </div>
         </div>
       </div>
+      
+      {showCreateModal && (
+        <CreateTokenModal
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={() => {
+            setShowCreateModal(false);
+            refreshData({ silent: false });
+          }}
+        />
+      )}
     </div>
   );
 };
 
-// --- Helpers ---
+// --- Helpers (Unchanged) ---
 const capitalizeWords = (value: string) =>
   value
     .split(" ")
@@ -290,13 +373,32 @@ const formatDateTime = (date?: string | null) => {
   }
 };
 
-const createCard = (token: TokenWithUser, context: "pending" | "queue"): Card => {
+// --- createCard (Updated) ---
+const createCard = (
+  token: TokenWithVendor, 
+  context: "pending" | "previous",
+  onCancel?: (tokenId: string) => void,
+  onDelete?: (tokenId: string) => void,
+  loadingTokenId?: string | null,
+  position?: number
+): Card => {
   const serviceLabel = capitalizeWords(token.serviceType ?? "service");
   const title = token.subject?.trim() ? token.subject : `${serviceLabel} request`;
   const baseDescription = token.description?.trim() || `Awaiting ${serviceLabel.toLowerCase()} details.`;
-  const description = context === "queue"
-    ? `Queue position: ${token.queuePosition ?? "N/A"}. ${truncateText(baseDescription)}`
-    : truncateText(baseDescription);
+
+  // UPDATED: Description logic for pending vs previous with position number
+  let description;
+  if (context === "pending") {
+    const positionText = position ? `#${position}` : `Queue position: ${token.queuePosition ?? "N/A"}`;
+    description = `${positionText}. ${truncateText(baseDescription)}`;
+  } else {
+    const positionText = position ? `#${position}` : "";
+    const completedDate = token.completedAt ? formatDateTime(token.completedAt) : "N/A";
+    description = `${positionText ? positionText + ". " : ""}Completed: ${completedDate}. ${truncateText(baseDescription)}`;
+  }
+
+  const canCancel = context === "pending" && (token.status === "PENDING" || token.status === "QUEUED" || token.status === "IN_PROGRESS");
+  const canDelete = context === "previous";
 
   return {
     id: token.id,
@@ -304,11 +406,14 @@ const createCard = (token: TokenWithUser, context: "pending" | "queue"): Card =>
     description,
     ctaText: "View details",
     token,
-    component: ProjectProposalReviewContent,
+    component: ProjectProposalReviewContent, // This component is now used for vendor details
+    onCancel: canCancel ? onCancel : undefined,
+    onDelete: canDelete ? onDelete : undefined,
+    isLoading: loadingTokenId === token.id,
   };
 };
 
-// --- Tab Button ---
+// --- Tab Button (Unchanged) ---
 const TabButton = ({ title, count, isActive, onClick }: { title: string; count: number; isActive: boolean; onClick: () => void }) => (
   <button
     onClick={onClick}
@@ -322,7 +427,7 @@ const TabButton = ({ title, count, isActive, onClick }: { title: string; count: 
   </button>
 );
 
-// --- Stat Card ---
+// --- Stat Card (Unchanged) ---
 const StatCard = ({ title, value, icon }: { title: string; value: number; icon: React.ReactNode }) => (
   <div className="bg-white p-6 rounded-lg shadow-sm flex items-center justify-between">
     <div>
@@ -333,13 +438,14 @@ const StatCard = ({ title, value, icon }: { title: string; value: number; icon: 
   </div>
 );
 
-// --- Empty State ---
+// --- Empty State (Unchanged) ---
 const EmptyState = ({ message }: { message: string }) => (
   <div className="py-12 text-center text-gray-600">
     <p className="text-sm md:text-base">{message}</p>
   </div>
 );
 
+// --- DashboardLoader (Unchanged) ---
 const DashboardLoader = () => (
   <div className="flex flex-1 items-center justify-center py-12">
     <div className="flex items-center space-x-2">
@@ -351,7 +457,7 @@ const DashboardLoader = () => (
   </div>
 );
 
-// --- Expandable Card Demo ---
+// --- Expandable Card Demo (Unchanged) ---
 function ExpandableCardDemo({ cards }: { cards: Card[] }) {
   const [active, setActive] = useState<Card | null>(null);
   const ref = useRef<HTMLDivElement>(null);
@@ -396,13 +502,32 @@ function ExpandableCardDemo({ cards }: { cards: Card[] }) {
               className="w-full max-w-[520px] h-full md:h-fit md:max-h-[90%] flex flex-col bg-white text-black sm:rounded-3xl overflow-hidden shadow-2xl"
             >
               <div className="flex justify-between items-start p-4">
-                <div>
-                  <motion.h3 layoutId={`title-${active.id}-${id}`} className="font-bold text-neutral-800">
-                    {active.title}
-                  </motion.h3>
-                  <motion.p layoutId={`description-${active.id}-${id}`} className="text-neutral-600">
-                    {active.description}
-                  </motion.p>
+                <div className="flex items-start gap-3 flex-1">
+                  {/* Status indicator in modal */}
+                  {(active.token.status === "COMPLETED" || active.token.status === "REJECTED" || active.token.status === "CANCELLED") && (
+                    <div className="mt-1.5">
+                      <div 
+                        className={`w-3 h-3 rounded-full ${
+                          active.token.status === "COMPLETED" ? "bg-green-500" :
+                          active.token.status === "REJECTED" ? "bg-red-500" :
+                          "bg-gray-500"
+                        }`}
+                        title={
+                          active.token.status === "COMPLETED" ? "Completed" :
+                          active.token.status === "REJECTED" ? "Cancelled by vendor" :
+                          "Cancelled by you"
+                        }
+                      />
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <motion.h3 layoutId={`title-${active.id}-${id}`} className="font-bold text-neutral-800">
+                      {active.title}
+                    </motion.h3>
+                    <motion.p layoutId={`description-${active.id}-${id}`} className="text-neutral-600">
+                      {active.description}
+                    </motion.p>
+                  </div>
                 </div>
               </div>
               <div className="pt-4 relative px-4">
@@ -413,7 +538,12 @@ function ExpandableCardDemo({ cards }: { cards: Card[] }) {
                   exit={{ opacity: 0 }}
                   className="text-neutral-700 text-sm lg:text-base h-auto md:h-fit pb-10 flex flex-col items-start gap-4 overflow-auto"
                 >
-                  <active.component token={active.token} />
+                  <active.component 
+                    token={active.token} 
+                    onCancel={active.onCancel}
+                    onDelete={active.onDelete}
+                    isLoading={active.isLoading}
+                  />
                 </motion.div>
               </div>
             </motion.div>
@@ -421,34 +551,58 @@ function ExpandableCardDemo({ cards }: { cards: Card[] }) {
         ) : null}
       </AnimatePresence>
       <ul className="max-w-none mx-auto w-full gap-4 flex flex-col">
-        {cards.map((card) => (
-          <motion.div
-            layoutId={`card-${card.id}-${id}`}
-            key={`card-${card.id}-${id}`}
-            onClick={() => setActive(card)}
-            className="p-4 flex flex-col md:flex-row justify-between items-center hover:bg-gray-50 rounded-xl cursor-pointer border border-transparent"
-          >
-            <div className="flex gap-4 flex-col md:flex-row">
-              <div>
-                <motion.h3 layoutId={`title-${card.id}-${id}`} className="font-medium text-neutral-800 text-center md:text-left">
-                  {card.title}
-                </motion.h3>
-                <motion.p layoutId={`description-${card.id}-${id}`} className="text-neutral-600 text-center md:text-left">
-                  {card.description}
-                </motion.p>
+        {cards.map((card) => {
+          // Determine status indicator color
+          let statusDotColor = "";
+          let statusLabel = "";
+          if (card.token.status === "COMPLETED") {
+            statusDotColor = "bg-green-500";
+            statusLabel = "Completed";
+          } else if (card.token.status === "REJECTED") {
+            statusDotColor = "bg-red-500";
+            statusLabel = "Cancelled by vendor";
+          } else if (card.token.status === "CANCELLED") {
+            statusDotColor = "bg-gray-500";
+            statusLabel = "Cancelled by you";
+          }
+
+          return (
+            <motion.div
+              layoutId={`card-${card.id}-${id}`}
+              key={`card-${card.id}-${id}`}
+              onClick={() => setActive(card)}
+              className="p-4 flex flex-col md:flex-row justify-between items-center hover:bg-gray-50 rounded-xl cursor-pointer border border-transparent"
+            >
+              <div className="flex gap-4 flex-col md:flex-row items-center md:items-start w-full md:w-auto">
+                {statusDotColor && (
+                  <div className="flex items-center gap-2 mt-1">
+                    <div 
+                      className={`w-3 h-3 rounded-full ${statusDotColor}`}
+                      title={statusLabel}
+                    />
+                  </div>
+                )}
+                <div className="flex-1">
+                  <motion.h3 layoutId={`title-${card.id}-${id}`} className="font-medium text-neutral-800 text-center md:text-left">
+                    {card.title}
+                  </motion.h3>
+                  <motion.p layoutId={`description-${card.id}-${id}`} className="text-neutral-600 text-center md:text-left">
+                    {card.description}
+                  </motion.p>
+                </div>
               </div>
-            </div>
-            <motion.button layoutId={`button-${card.id}-${id}`} className="px-4 py-2 text-sm rounded-full font-bold bg-gray-100 hover:bg-gray-200 text-black mt-4 md:mt-0">
-              {card.ctaText}
-            </motion.button>
-          </motion.div>
-        ))}
+              <motion.button layoutId={`button-${card.id}-${id}`} className="px-4 py-2 text-sm rounded-full font-bold bg-gray-100 hover:bg-gray-200 text-black mt-4 md:mt-0">
+                {card.ctaText}
+              </motion.button>
+            </motion.div>
+          );
+        })}
       </ul>
     </>
   );
 }
 
-// --- Close Icon ---
+// --- Close Icon (Unchanged) ---
 export const CloseIcon = () => (
   <motion.svg
     initial={{ opacity: 0 }}
@@ -471,15 +625,87 @@ export const CloseIcon = () => (
   </motion.svg>
 );
 
-// --- Project Proposal Review Template (dynamic) ---
-const ProjectProposalReviewContent = ({ token }: { token: TokenWithUser }) => {
+// --- Project Proposal Review Content (Updated) ---
+const ProjectProposalReviewContent = ({ 
+  token, 
+  onCancel, 
+  onDelete, 
+  isLoading 
+}: { 
+  token: TokenWithVendor;
+  onCancel?: (tokenId: string) => void;
+  onDelete?: (tokenId: string) => void;
+  isLoading?: boolean;
+}) => {
+  const [timeDisplay, setTimeDisplay] = React.useState<string>("");
+
+  React.useEffect(() => {
+    // Timer for IN_PROGRESS or QUEUED status showing remaining time
+    if (token.status !== "IN_PROGRESS" && token.status !== "QUEUED") return;
+    if (!token.estimatedCompletion) return;
+
+    const updateTimer = () => {
+      const now = Date.now();
+      const endTime = new Date(token.estimatedCompletion!).getTime();
+      const diff = endTime - now;
+      
+      if (diff <= 0) {
+        setTimeDisplay("Overdue");
+        return;
+      }
+      
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+      setTimeDisplay(`${hours}h ${minutes}m ${seconds}s`);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [token.status, token.estimatedCompletion]);
+
   const serviceLabel = capitalizeWords(token.serviceType ?? "Service");
   const queuePosition = token.queuePosition ? `#${token.queuePosition}` : "Not queued";
   const eta = token.estimatedCompletion ? formatDateTime(token.estimatedCompletion) : "Not available";
   const statusLabel = capitalizeWords(token.status.toLowerCase().replace(/_/g, " "));
+  const isActive = token.status === "QUEUED" || token.status === "IN_PROGRESS";
 
   return (
     <div className="w-full">
+      {timeDisplay && isActive && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm font-semibold text-blue-700">
+            <IconClock className="inline h-4 w-4 mr-1" />
+            Time Remaining: {timeDisplay}
+          </p>
+        </div>
+      )}
+
+      {/* Status badge for completed/cancelled requests */}
+      {(token.status === "COMPLETED" || token.status === "REJECTED" || token.status === "CANCELLED") && (
+        <div className={`mb-4 p-3 rounded-lg border ${
+          token.status === "COMPLETED" ? "bg-green-50 border-green-200" :
+          token.status === "REJECTED" ? "bg-red-50 border-red-200" :
+          "bg-gray-50 border-gray-200"
+        }`}>
+          <p className={`text-sm font-semibold ${
+            token.status === "COMPLETED" ? "text-green-700" :
+            token.status === "REJECTED" ? "text-red-700" :
+            "text-gray-700"
+          }`}>
+            <span className={`inline-block w-2 h-2 rounded-full mr-2 ${
+              token.status === "COMPLETED" ? "bg-green-500" :
+              token.status === "REJECTED" ? "bg-red-500" :
+              "bg-gray-500"
+            }`}></span>
+            {token.status === "COMPLETED" ? "Request Completed" :
+             token.status === "REJECTED" ? "Cancelled by Vendor" :
+             "Cancelled by You"}
+          </p>
+        </div>
+      )}
+
       <section className="space-y-2">
         <h4 className="text-sm font-bold uppercase text-gray-400">Request Summary</h4>
         <p className="text-sm text-gray-700">
@@ -499,20 +725,25 @@ const ProjectProposalReviewContent = ({ token }: { token: TokenWithUser }) => {
         </p>
       </section>
 
+      {/* UPDATED: Changed from User Details to Vendor Details */}
       <section className="mt-6 space-y-2">
-        <h4 className="text-sm font-bold uppercase text-gray-400">User Details</h4>
+        <h4 className="text-sm font-bold uppercase text-gray-400">Vendor Details</h4>
         <div className="flex flex-col gap-2">
           <div className="flex items-center gap-2">
+            <IconUser className="h-4 w-4 text-gray-500" />
+            <span className="text-gray-800">{token.vendor?.name ?? "Vendor name not available"}</span>
+          </div>
+          <div className="flex items-center gap-2">
             <IconMail className="h-4 w-4 text-gray-500" />
-            <span className="text-gray-800">{token.user?.email ?? "Email not provided"}</span>
+            <span className="text-gray-800">{token.vendor?.email ?? "Email not provided"}</span>
           </div>
           <div className="flex items-center gap-2">
             <IconPhone className="h-4 w-4 text-gray-500" />
-            <span className="text-gray-800">Phone not available</span>
+            <span className="text-gray-800">{token.vendor?.phoneNumber ?? "Phone not available"}</span>
           </div>
           <div className="flex items-center gap-2">
             <IconMapPin className="h-4 w-4 text-gray-500" />
-            <span className="text-gray-800">Address not provided</span>
+            <span className="text-gray-800">{token.vendor?.address ?? "Address not provided"}</span>
           </div>
         </div>
       </section>
@@ -526,12 +757,36 @@ const ProjectProposalReviewContent = ({ token }: { token: TokenWithUser }) => {
           {token.description || "No description provided."}
         </p>
         {token.vendorMessage && (
-          <p className="text-sm text-gray-700 bg-yellow-50 border border-yellow-200 rounded-md p-3">
-            <strong>Vendor Notes:</strong> {token.vendorMessage}
+          <p className="text-sm text-gray-700 bg-blue-50 border border-blue-200 rounded-md p-3">
+            <strong>Message from Vendor:</strong> {token.vendorMessage}
           </p>
         )}
       </section>
+
+      {/* Action buttons section */}
+      {onCancel && (
+        <section className="mt-6 pt-6 border-t border-gray-200">
+          <button
+            onClick={() => onCancel(token.id)}
+            disabled={isLoading}
+            className="w-full px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? "Processing..." : "Cancel Request"}
+          </button>
+        </section>
+      )}
+
+      {onDelete && (
+        <section className="mt-6 pt-6 border-t border-gray-200">
+          <button
+            onClick={() => onDelete(token.id)}
+            disabled={isLoading}
+            className="w-full px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white font-medium rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isLoading ? "Processing..." : "Delete from History"}
+          </button>
+        </section>
+      )}
     </div>
   );
 };
-

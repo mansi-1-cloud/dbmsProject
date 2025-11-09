@@ -6,7 +6,6 @@ import { PageLoader, LoadingSpinner } from '../components/LoadingSpinner';
 import { Modal } from '../components/Modal';
 import AddServiceModal from '../components/AddServiceModal';
 import EditVendorProfileModal from '../components/EditVendorProfileModal';
-import { ThemeToggle } from '../components/ThemeToggle';
 import { Vendor } from '../types';
 
 export default function VendorProfile() {
@@ -80,7 +79,6 @@ export default function VendorProfile() {
             </button>
             <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">Vendor Profile</h1>
           </div>
-          <ThemeToggle />
         </div>
       </header>
 

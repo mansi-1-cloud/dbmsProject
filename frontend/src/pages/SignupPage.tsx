@@ -70,30 +70,30 @@ export function SignupPage() {
   };
 
   return (
-    <div className="flex min-h-screen w-full bg-black text-white">
-      {/* --- Left Column: Form (Half width on medium screens and up) --- */}
-      <div className="w-full md:w-1/2 flex flex-col justify-center items-center p-8">
-        <div className="w-full max-w-md">
-          {/* Logo (simple dark-mode style) */}
-          <div className="h-10 w-10 bg-white rounded-lg mb-8"></div>
+    <div className="flex min-h-screen w-full bg-white items-center justify-center">
+      {/* --- Centered Form Container --- */}
+      <div className="w-full max-w-md p-8">
+        <div className="w-full">
+          {/* Logo (simple style) */}
+          <div className="h-10 w-10 bg-black rounded-lg mb-8"></div>
 
           {/* Title */}
           <motion.h1
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3 }}
-            className="text-3xl font-bold mb-2 text-white"
+            className="text-3xl font-bold mb-2 text-black"
           >
             Create account
           </motion.h1>
 
           {/* Subtitle */}
-          <p className="text-gray-400 mb-8">
+          <p className="text-gray-600 mb-8">
             Select your role and join the platform to access the right tools.
           </p>
 
           {/* Role Toggle */}
-          <div className="flex mb-6 rounded-lg overflow-hidden border border-gray-800">
+          <div className="flex mb-6 rounded-lg overflow-hidden border border-gray-300">
             {signupRoles.map((signupRole) => (
               <button
                 key={signupRole}
@@ -101,8 +101,8 @@ export function SignupPage() {
                 onClick={() => setRole(signupRole)}
                 className={`flex-1 py-2 text-sm font-semibold transition-colors ${
                   role === signupRole
-                    ? "bg-white text-black"
-                    : "bg-transparent text-gray-400 hover:text-white"
+                    ? "bg-black text-white"
+                    : "bg-transparent text-gray-600 hover:text-black"
                 }`}
               >
                 {signupRole === "USER" ? "User" : "Vendor"}
@@ -123,12 +123,12 @@ export function SignupPage() {
             >
               <label
                 htmlFor="name"
-                className="block text-sm font-medium text-gray-400 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-1"
               >
                 Name
               </label>
               <div className="relative">
-                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   type="text"
                   id="name"
@@ -136,7 +136,7 @@ export function SignupPage() {
                   onChange={(event) => setName(event.target.value)}
                   placeholder="Enter your name"
                   required
-                  className="w-full bg-gray-900 border border-gray-700 rounded-md p-3 pl-10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-white border border-gray-300 rounded-md p-3 pl-10 text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </motion.div>
@@ -145,12 +145,12 @@ export function SignupPage() {
             <div>
               <label
                 htmlFor="email"
-                className="block text-sm font-medium text-gray-400 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-1"
               >
                 Email
               </label>
               <div className="relative">
-                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   type="email"
                   id="email"
@@ -158,7 +158,7 @@ export function SignupPage() {
                   onChange={(event) => setEmail(event.target.value)}
                   placeholder="youremail@yourdomain.com"
                   required
-                  className="w-full bg-gray-900 border border-gray-700 rounded-md p-3 pl-10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-white border border-gray-300 rounded-md p-3 pl-10 text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -167,12 +167,12 @@ export function SignupPage() {
             <div>
               <label
                 htmlFor="password"
-                className="block text-sm font-medium text-gray-400 mb-1"
+                className="block text-sm font-medium text-gray-700 mb-1"
               >
                 Password
               </label>
               <div className="relative">
-                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                 <input
                   type="password"
                   id="password"
@@ -180,7 +180,7 @@ export function SignupPage() {
                   onChange={(event) => setPassword(event.target.value)}
                   placeholder="Enter a password"
                   required
-                  className="w-full bg-gray-900 border border-gray-700 rounded-md p-3 pl-10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-white border border-gray-300 rounded-md p-3 pl-10 text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
@@ -189,7 +189,7 @@ export function SignupPage() {
               <div>
                 <label
                   htmlFor="services"
-                  className="block text-sm font-medium text-gray-400 mb-1"
+                  className="block text-sm font-medium text-gray-700 mb-1"
                 >
                   Services Offered
                 </label>
@@ -198,7 +198,7 @@ export function SignupPage() {
                   value={servicesInput}
                   onChange={(event) => setServicesInput(event.target.value)}
                   placeholder="e.g. Document Printing, Laptop Repair"
-                  className="w-full bg-gray-900 border border-gray-700 rounded-md p-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full bg-white border border-gray-300 rounded-md p-3 text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                   rows={3}
                 />
                 <p className="text-xs text-gray-500 mt-1">
@@ -208,7 +208,7 @@ export function SignupPage() {
             )}
 
             {error && (
-              <p className="text-sm text-red-400" role="alert">
+              <p className="text-sm text-red-600" role="alert">
                 {error}
               </p>
             )}
@@ -217,27 +217,24 @@ export function SignupPage() {
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-white text-black font-bold py-3 rounded-md hover:bg-gray-200 transition-colors mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
+              className="w-full bg-black text-white font-bold py-3 rounded-md hover:bg-gray-800 transition-colors mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               {isSubmitting ? "Creating account..." : "Sign up"}
             </button>
           </form>
 
           {/* Toggle Link */}
-          <p className="text-center text-sm text-gray-400 mt-8">
+          <p className="text-center text-sm text-gray-600 mt-8">
             Already have an account?{" "}
             <Link
               to="/login"
-              className="font-semibold text-white hover:underline"
+              className="font-semibold text-black hover:underline"
             >
               Sign in
             </Link>
           </p>
         </div>
       </div>
-
-      {/* --- Right Column: Background Effect (Half width, full height) --- */}
-      <div className="hidden md:flex md:w-1/2"></div>
     </div>
   );
 }
