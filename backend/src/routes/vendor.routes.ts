@@ -54,6 +54,16 @@ router.get('/:id/pending', authenticate, requireRole('VENDOR'), async (req: Auth
   }
 });
 
+// Get vendor stats summary (Vendor-only)
+router.get('/:id/stats', authenticate, requireRole('VENDOR'), async (req: AuthRequest, res: Response) => {
+  try {
+    const stats = await vendorService.getVendorStats(req.params.id, req.user!.id);
+    res.json(stats);
+  } catch (error: any) {
+    handleError(error, res);
+  }
+});
+
 // Get vendor profile (Vendor-only)
 router.get('/:id/profile', authenticate, requireRole('VENDOR'), async (req: AuthRequest, res: Response) => {
   try {

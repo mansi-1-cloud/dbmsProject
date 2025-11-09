@@ -1,15 +1,7 @@
 import { useState } from 'react';
 import { Modal } from './Modal';
 import { LoadingSpinner } from './LoadingSpinner';
-// import { api } from '../services/api';
-
-// Mock
-const api = {
-  addVendorService: async (_vendorId: string, serviceName: string) => {
-    await new Promise(res => setTimeout(res, 1000));
-    return { services: [serviceName] };
-  }
-}
+import { api } from '../services/api';
 
 interface AddServiceModalProps {
   vendorId: string;
@@ -34,8 +26,8 @@ export default function AddServiceModal({ vendorId, onClose, onSuccess }: AddSer
     
     setLoading(true);
     try {
-      const result = await api.addVendorService(vendorId, serviceName.trim().toLowerCase());
-      onSuccess(result.services);
+      const updatedVendor = await api.addVendorService(vendorId, serviceName.trim());
+      onSuccess(updatedVendor.services);
       onClose();
     } catch (err: any) {
       setError(err.message || 'Failed to add service');

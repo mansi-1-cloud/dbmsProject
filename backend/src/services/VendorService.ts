@@ -54,6 +54,53 @@ class VendorService {
   }
 
   /**
+   * Get aggregate stats for a vendor dashboard (vendor-only)
+   */
+  async getVendorStats(vendorId: string, userId: string) {
+    await this.findAndAuthorizeVendor(vendorId, userId);
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const [pendingCount, activeCount, completedToday, completedTotal] = await Promise.all([
+      prisma.token.count({
+        where: {
+          vendorId,
+          status: 'PENDING',
+        },
+      }),
+      prisma.token.count({
+        where: {
+          vendorId,
+          status: { in: ['QUEUED', 'IN_PROGRESS'] },
+        },
+      }),
+      prisma.token.count({
+        where: {
+          vendorId,
+          status: 'COMPLETED',
+          updatedAt: {
+            gte: startOfToday,
+          },
+        },
+      }),
+      prisma.token.count({
+        where: {
+          vendorId,
+          status: 'COMPLETED',
+        },
+      }),
+    ]);
+
+    return {
+      pendingCount,
+      activeCount,
+      completedToday,
+      completedTotal,
+    };
+  }
+
+  /**
    * Get a vendor's profile (vendor-only)
    */
   async getVendorProfile(vendorId: string, userId: string) {

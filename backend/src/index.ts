@@ -14,8 +14,23 @@ const server = createServer(app);
 const PORT = process.env.PORT || 4000;
 
 // Middleware
+const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+  .split(',')
+  .map(origin => origin.trim());
+
+console.log('🌐 CORS_ORIGIN from env:', process.env.CORS_ORIGIN);
+console.log('🌐 CORS enabled for:', allowedOrigins);
+
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+  origin: (origin, callback) => {
+    console.log('📡 Incoming request from origin:', origin);
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      console.log('❌ Origin not allowed:', origin);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
 }));
 

@@ -1,19 +1,7 @@
 import { useState } from 'react';
 import { Modal } from './Modal';
 import { LoadingSpinner } from './LoadingSpinner';
-// import { api } from '../services/api';
-
-// Mock
-const api = {
-  addVendorService: async (_vendorId: string, serviceName: string) => {
-    await new Promise(res => setTimeout(res, 500));
-    return { services: [serviceName, 'existing service'] };
-  },
-  removeVendorService: async () => {
-    await new Promise(res => setTimeout(res, 500));
-    return { services: ['existing service'] };
-  }
-}
+import { api } from '../services/api';
 
 interface ManageServicesModalProps {
   vendorId: string;
@@ -44,9 +32,9 @@ export default function ManageServicesModal({ vendorId, currentServices, onClose
 
     setLoading('add');
     try {
-      const result = await api.addVendorService(vendorId, trimmedService);
-      setServices(result.services);
-      onUpdate(result.services);
+      const updatedVendor = await api.addVendorService(vendorId, trimmedService);
+      setServices(updatedVendor.services);
+      onUpdate(updatedVendor.services);
       setNewService('');
     } catch (err: any) {
       setError(err.message || 'Failed to add service');
@@ -63,9 +51,9 @@ export default function ManageServicesModal({ vendorId, currentServices, onClose
     setLoading(serviceName);
     setError('');
     try {
-      const result = await api.removeVendorService();
-      setServices(result.services);
-      onUpdate(result.services);
+  const updatedVendor = await api.removeVendorService(vendorId, serviceName);
+  setServices(updatedVendor.services);
+  onUpdate(updatedVendor.services);
     } catch (err: any) {
       setError(err.message || 'Failed to remove service');
     } finally {

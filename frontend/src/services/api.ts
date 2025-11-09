@@ -1,6 +1,6 @@
 import { getDefaultStore } from 'jotai';
 import { tokenAtom } from '../store/authAtoms';
-import { UserProfile, Vendor } from '../types'; // Import types
+import { UserProfile, Vendor, Token } from '../types'; // Import types
 
 // Use Vite's env variable, falling back to your new URL
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api';
@@ -86,12 +86,21 @@ class ApiService {
     return this.request('/vendors');
   }
 
-  async getVendorQueue(vendorId: string) {
+  async getVendorQueue(vendorId: string): Promise<Token[]> {
     return this.request(`/vendors/${vendorId}/queue`);
   }
 
-  async getVendorPending(vendorId: string) {
+  async getVendorPending(vendorId: string): Promise<Token[]> {
     return this.request(`/vendors/${vendorId}/pending`);
+  }
+
+  async getVendorStats(vendorId: string): Promise<{
+    pendingCount: number;
+    activeCount: number;
+    completedToday: number;
+    completedTotal: number;
+  }> {
+    return this.request(`/vendors/${vendorId}/stats`);
   }
 
   // --- Tokens ---
@@ -134,20 +143,20 @@ class ApiService {
     return this.request(`/vendors/${vendorId}/profile`);
   }
 
-  async addVendorService(vendorId: string, service: string) {
+  async addVendorService(vendorId: string, service: string): Promise<Vendor> {
     return this.request(`/vendors/${vendorId}/services`, {
       method: 'POST',
       body: JSON.stringify({ service }),
     });
   }
 
-  async removeVendorService(vendorId: string, serviceName: string) {
+  async removeVendorService(vendorId: string, serviceName: string): Promise<Vendor> {
     return this.request(`/vendors/${vendorId}/services/${encodeURIComponent(serviceName)}`, {
       method: 'DELETE',
     });
   }
 
-  async updateVendorServices(vendorId: string, services: string[]) {
+  async updateVendorServices(vendorId: string, services: string[]): Promise<Vendor> {
     return this.request(`/vendors/${vendorId}/services`, {
       method: 'PATCH',
       body: JSON.stringify({ services }),

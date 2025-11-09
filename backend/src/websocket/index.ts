@@ -5,9 +5,15 @@ import { authService } from '../services/AuthService.js';
 let io: Server;
 
 export const initializeWebSocket = (server: HTTPServer) => {
+  const allowedOrigins = (process.env.CORS_ORIGIN || 'http://localhost:3000')
+    .split(',')
+    .map(origin => origin.trim());
+  
+  console.log('🌐 WebSocket CORS enabled for:', allowedOrigins);
+  
   io = new Server(server, {
     cors: {
-      origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+      origin: allowedOrigins,
       credentials: true,
     },
   });
@@ -62,6 +68,7 @@ export const getIO = (): Server => {
 
 export const emitToUser = (userId: string, event: string, data: any) => {
   try {
+    console.log(`📤 Emitting to user ${userId}: ${event}`);
     getIO().to(`user:${userId}`).emit(event, data);
   } catch (error) {
     console.error('Error emitting to user:', error);
@@ -70,6 +77,7 @@ export const emitToUser = (userId: string, event: string, data: any) => {
 
 export const emitToVendor = (vendorId: string, event: string, data: any) => {
   try {
+    console.log(`📤 Emitting to vendor ${vendorId}: ${event}`);
     getIO().to(`vendor:${vendorId}`).emit(event, data);
   } catch (error) {
     console.error('Error emitting to vendor:', error);

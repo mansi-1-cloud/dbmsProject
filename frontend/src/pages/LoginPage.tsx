@@ -1,11 +1,63 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { Mail, Lock } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { api } from "../services/api";
+import { useAuth } from "../hooks/useAuth";
+import type { Role } from "../types";
+
+const loginRoles: Role[] = ["USER", "VENDOR"];
 
 // --- Main Login Page Component ---
 export function LoginPage() {
+  const navigate = useNavigate();
+  const { setAuth, isAuthenticated, user } = useAuth();
+
+  const [role, setRole] = useState<Role>("USER");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (isSubmitting) return;
+
+    setError(null);
+    setIsSubmitting(true);
+
+    try {
+      if (role === "USER") {
+        const { user, token } = await api.loginUser(email, password);
+        setAuth(user, token);
+        navigate("/user/dashboard", { replace: true });
+      } else {
+        const { vendor, token } = await api.loginVendor(email, password);
+        setAuth({
+          id: vendor.id,
+          name: vendor.name,
+          email: vendor.email,
+          role: vendor.role,
+          services: vendor.services,
+        }, token);
+        navigate("/vendor/dashboard", { replace: true });
+      }
+    } catch (err: any) {
+      setError(err?.message || "Unable to sign in. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      const redirectPath = user.role === "VENDOR" ? "/vendor/dashboard" : "/user/dashboard";
+      navigate(redirectPath, { replace: true });
+    }
+  }, [isAuthenticated, user, navigate]);
+
   return (
     <div className="flex min-h-screen w-full bg-black text-white">
       {/* --- Left Column: Form (Half width on medium screens and up) --- */}
@@ -26,12 +78,29 @@ export function LoginPage() {
 
           {/* Subtitle */}
           <p className="text-gray-400 mb-8">
-            We empower developers and technical teams to create, simulate, and
-            manage AI-driven workflows visually
+            Choose your account type and continue to your dashboard.
           </p>
 
+          {/* Role Toggle */}
+          <div className="flex mb-6 rounded-lg overflow-hidden border border-gray-800">
+            {loginRoles.map((loginRole) => (
+              <button
+                key={loginRole}
+                type="button"
+                onClick={() => setRole(loginRole)}
+                className={`flex-1 py-2 text-sm font-semibold transition-colors ${
+                  role === loginRole
+                    ? "bg-white text-black"
+                    : "bg-transparent text-gray-400 hover:text-white"
+                }`}
+              >
+                {loginRole === "USER" ? "User" : "Vendor"}
+              </button>
+            ))}
+          </div>
+
           {/* Form */}
-          <form className="flex flex-col gap-4">
+          <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
             {/* Email Field */}
             <div>
               <label
@@ -45,7 +114,10 @@ export function LoginPage() {
                 <input
                   type="email"
                   id="email"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
                   placeholder="youremail@yourdomain.com"
+                  required
                   className="w-full bg-gray-900 border border-gray-700 rounded-md p-3 pl-10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
@@ -64,30 +136,40 @@ export function LoginPage() {
                 <input
                   type="password"
                   id="password"
-                  placeholder="Enter a password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder="Enter your password"
+                  required
                   className="w-full bg-gray-900 border border-gray-700 rounded-md p-3 pl-10 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
             </div>
 
+            {error && (
+              <p className="text-sm text-red-400" role="alert">
+                {error}
+              </p>
+            )}
+
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full bg-white text-black font-bold py-3 rounded-md hover:bg-gray-200 transition-colors mt-4"
+              disabled={isSubmitting}
+              className="w-full bg-white text-black font-bold py-3 rounded-md hover:bg-gray-200 transition-colors mt-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Sign in
+              {isSubmitting ? "Signing in..." : "Sign in"}
             </button>
           </form>
 
           {/* Toggle Link */}
           <p className="text-center text-sm text-gray-400 mt-8">
-            Dont have an account?{" "}
-            <a
-              href="/signup" 
+            Don&apos;t have an account?{" "}
+            <Link
+              to="/signup"
               className="font-semibold text-white hover:underline"
             >
               Sign up
-            </a>
+            </Link>
           </p>
         </div>
       </div>

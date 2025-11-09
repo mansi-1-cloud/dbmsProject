@@ -1,12 +1,12 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './hooks/useAuth';
-import UserDashboard from './pages/UserDashboard';
 import UserProfile from './pages/UserProfile';
 import VendorProfile from './pages/VendorProfile';
 import { VendorDashboard } from './pages/VendorDash';
 import { SignupPage } from './pages/SignupPage';
 import { LoginPage } from './pages/LoginPage';
 import HeroSection from './components/hero-section-demo-1';
+import { UserDashboard } from './pages/UserDashboard';
 
 function App() {
   const { user, isAuthenticated } = useAuth();
@@ -14,14 +14,12 @@ function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<UserDashboard />} />
+        <Route path="/" element={<HeroSection />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<SignupPage />} />
-        <Route path="/hero" element={<HeroSection/>} />
-        <Route path="/signup" element={<SignupPage/>} />
+        <Route path="/hero" element={<HeroSection />} />
+        <Route path="/signup" element={<SignupPage />} />
 
-
-        {/* <Route path='following' element={<FollowerPointerCard{,,"Garv"}/>} /> */}
         <Route 
           path="/user/dashboard" 
           element={
@@ -39,7 +37,6 @@ function App() {
               : <Navigate to="/login" />
           } 
         />
-        pages
         <Route 
           path="/vendor/dashboard" 
           element={
