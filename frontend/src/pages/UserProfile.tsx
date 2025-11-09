@@ -3,16 +3,13 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth'; // Use new Jotai auth hook
 import { api } from '../services/api';
 import { UserProfile as UserProfileType, Token } from '../types'; // Renamed to avoid conflict
-import { useTheme } from '../hooks/useTheme';
 import { PageLoader } from '../components/LoadingSpinner';
-import { ThemeToggle } from '../components/ThemeToggle';
 import EditUserProfileModal from '../components/EditUserProfileModal';
 import { BackIcon, EditIcon } from '../components/Icons'; // Use SVG Icons
 
 export default function UserProfile() {
   const { user, setUser } = useAuth(); // Use new Jotai auth hook
   const navigate = useNavigate();
-  useTheme(); // Initialize theme
 
   const [profile, setProfile] = useState<UserProfileType | null>(null);
   const [tokens, setTokens] = useState<Token[]>([]);
@@ -84,9 +81,6 @@ export default function UserProfile() {
             <BackIcon />
             Back to Dashboard
           </button>
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-          </div>
         </div>
       </header>
 

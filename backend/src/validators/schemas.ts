@@ -43,7 +43,7 @@ export const createTokenSchema = z.object({
 });
 
 export const updateTokenStatusSchema = z.object({
-  vendorMessage: z.string().trim().min(1, "A message is required for rejection"),
+  vendorMessage: z.string().optional().default(""),
 });
 
 

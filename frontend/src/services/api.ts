@@ -103,6 +103,23 @@ class ApiService {
     return this.request(`/vendors/${vendorId}/stats`);
   }
 
+  // --- User Dashboard ---
+  async getUserPending(userId: string): Promise<Token[]> {
+    return this.request(`/tokens/user/${userId}/pending`);
+  }
+
+  async getUserHistory(userId: string): Promise<Token[]> {
+    return this.request(`/tokens/user/${userId}/history`);
+  }
+
+  async getUserStats(userId: string): Promise<{
+    pendingCount: number;
+    completedToday: number;
+    completedTotal: number;
+  }> {
+    return this.request(`/tokens/user/${userId}/stats`);
+  }
+
   // --- Tokens ---
   async createToken(vendorId: string, serviceType: string, subject: string, description: string, params?: any) {
     return this.request('/tokens', {

@@ -3,6 +3,7 @@ import { cn } from "@/lib/utils";
 import React, { useState, createContext, useContext } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { IconMenu2, IconX } from "@tabler/icons-react";
+import { Link, useNavigate } from "react-router-dom";
 
 interface Links {
   label: string;
@@ -164,15 +165,27 @@ export const SidebarLink = ({
   className?: string;
 }) => {
   const { open, animate } = useSidebar();
+  const navigate = useNavigate();
+  
   const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+    event.preventDefault();
     if (link.onClick) {
-      event.preventDefault();
       link.onClick();
+    } else if (link.href.startsWith('/')) {
+      // Use React Router navigation for internal routes
+      navigate(link.href);
+    } else if (link.href.startsWith('#')) {
+      // Handle hash navigation (anchor links)
+      const element = document.querySelector(link.href);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+      }
     }
   };
+  
   return (
-    <a
-      href={link.href}
+    <Link
+      to={link.href.startsWith('/') ? link.href : '#'}
       className={cn(
         "flex items-center justify-start gap-2  group/sidebar py-2",
         className
@@ -191,6 +204,6 @@ export const SidebarLink = ({
       >
         {link.label}
       </motion.span>
-    </a>
+    </Link>
   );
 };

@@ -103,12 +103,12 @@ export default function CreateTokenModal({ onClose, onSuccess }: CreateTokenModa
                 setSelectedVendorId(e.target.value);
                 setServiceType('');
               }}
-              className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               required
             >
-              <option value="">-- Choose a vendor --</option>
+              <option value="" className="text-zinc-900 dark:text-zinc-100">-- Choose a vendor --</option>
               {vendors.map(vendor => (
-                <option key={vendor.id} value={vendor.id}>
+                <option key={vendor.id} value={vendor.id} className="text-zinc-900 dark:text-zinc-100">
                   {vendor.name}
                 </option>
               ))}
@@ -124,12 +124,12 @@ export default function CreateTokenModal({ onClose, onSuccess }: CreateTokenModa
                 id="service"
                 value={serviceType}
                 onChange={(e) => setServiceType(e.target.value)}
-                className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                 required
               >
-                <option value="">-- Choose a service --</option>
+                <option value="" className="text-zinc-900 dark:text-zinc-100">-- Choose a service --</option>
                 {availableServices.map((service: string) => (
-                  <option key={service} value={service} className="capitalize">
+                  <option key={service} value={service} className="capitalize text-zinc-900 dark:text-zinc-100">
                     {service}
                   </option>
                 ))}
@@ -146,7 +146,7 @@ export default function CreateTokenModal({ onClose, onSuccess }: CreateTokenModa
               type="text"
               value={subject}
               onChange={(e) => setSubject(e.target.value)}
-              className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Brief title for your request"
               required
             />
@@ -160,7 +160,7 @@ export default function CreateTokenModal({ onClose, onSuccess }: CreateTokenModa
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-2 border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 text-zinc-900 dark:text-zinc-100 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               rows={4}
               placeholder="Describe your service request in detail..."
               required

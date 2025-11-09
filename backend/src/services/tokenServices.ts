@@ -87,6 +87,88 @@ class TokenService {
   }
 
   /**
+   * Get user's pending tokens (PENDING, QUEUED, IN_PROGRESS)
+   */
+  async getUserPendingTokens(userId: string) {
+    return prisma.token.findMany({
+      where: { 
+        userId: userId,
+        status: { in: ['PENDING', 'QUEUED', 'IN_PROGRESS'] }
+      },
+      include: {
+        vendor: { 
+          select: { 
+            name: true, 
+            email: true, 
+            phoneNumber: true, 
+            address: true 
+          } 
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  /**
+   * Get user's history tokens (COMPLETED, REJECTED, CANCELLED)
+   */
+  async getUserHistoryTokens(userId: string) {
+    return prisma.token.findMany({
+      where: { 
+        userId: userId,
+        status: { in: ['COMPLETED', 'REJECTED', 'CANCELLED'] }
+      },
+      include: {
+        vendor: { 
+          select: { 
+            name: true, 
+            email: true, 
+            phoneNumber: true, 
+            address: true 
+          } 
+        },
+      },
+      orderBy: { updatedAt: 'desc' },
+    });
+  }
+
+  /**
+   * Get user's stats
+   */
+  async getUserStats(userId: string) {
+    const now = new Date();
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    const [pendingCount, completedToday, completedTotal] = await Promise.all([
+      prisma.token.count({
+        where: {
+          userId: userId,
+          status: { in: ['PENDING', 'QUEUED', 'IN_PROGRESS'] }
+        }
+      }),
+      prisma.token.count({
+        where: {
+          userId: userId,
+          status: 'COMPLETED',
+          updatedAt: { gte: startOfDay }
+        }
+      }),
+      prisma.token.count({
+        where: {
+          userId: userId,
+          status: 'COMPLETED'
+        }
+      })
+    ]);
+
+    return {
+      pendingCount,
+      completedToday,
+      completedTotal
+    };
+  }
+
+  /**
    * Approve a token (Vendor)
    */
   async approveToken(tokenId: string, vendorId: string) {
