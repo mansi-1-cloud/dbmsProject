@@ -5,7 +5,6 @@ import { useNavigate } from "react-router-dom";
 import { Sidebar, SidebarBody, SidebarLink } from "@/components/ui/sidebar";
 import {
   IconArrowLeft,
-  IconBrandTabler,
   IconUser,
   IconClipboardList,
   IconClock,
