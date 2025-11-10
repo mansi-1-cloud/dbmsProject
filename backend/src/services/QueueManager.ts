@@ -2,7 +2,7 @@ import { randomBytes } from 'crypto';
 import prisma from '../lib/prisma.js';
 import redis from '../lib/redis.js';
 import { FIFOStrategy } from './scheduling/FIFOStrategy.js';
-import { SchedulingStrategy, QueueToken } from '../types/index.js'; // Imports the new types
+import { SchedulingStrategy, QueueToken } from '../types/index.js';
 
 const LOCK_TTL = 10; 
 const LOCK_RETRIES = 5;
@@ -52,7 +52,6 @@ export class QueueManager {
       end
     `;
     try {
-      // Use the older redis.eval syntax
       await redis.eval(script, 1, lockKey, lockValue);
     } catch (error) {
       console.error(`Failed to release lock for ${vendorId}:`, error);
@@ -111,23 +110,17 @@ export class QueueManager {
       },
     });
 
-    // --- THIS IS THE FIX ---
-    // We now map to the new, simpler QueueToken interface.
-    // No 'estimatedDuration' calculation is needed here.
     const queueTokens: QueueToken[] = tokens.map(t => ({
       id: t.id,
       serviceType: t.serviceType,
       createdAt: t.createdAt,
     }));
 
-    // The strategy methods will use their *own* getEstimatedDuration
     const sortedQueue = this.strategy.calculateQueue(queueTokens);
 
     const updatePromises = sortedQueue.map((queueToken, i) => {
       const estimatedCompletion = this.strategy.estimateCompletion(i, sortedQueue);
 
-      // --- THIS IS THE FIX ---
-      // We use 'queueToken.id' which matches our new type
       return prisma.token.update({
         where: { id: queueToken.id },
         data: {

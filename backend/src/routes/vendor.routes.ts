@@ -44,7 +44,6 @@ router.get('/:id/queue', authenticate, async (req: AuthRequest, res: Response) =
   }
 });
 
-// Get vendor pending requests (Vendor-only)
 router.get('/:id/pending', authenticate, requireRole('VENDOR'), async (req: AuthRequest, res: Response) => {
   try {
     const pending = await vendorService.getPendingTokens(req.params.id, req.user!.id);
@@ -54,7 +53,6 @@ router.get('/:id/pending', authenticate, requireRole('VENDOR'), async (req: Auth
   }
 });
 
-// Get vendor stats summary (Vendor-only)
 router.get('/:id/stats', authenticate, requireRole('VENDOR'), async (req: AuthRequest, res: Response) => {
   try {
     const stats = await vendorService.getVendorStats(req.params.id, req.user!.id);
@@ -64,7 +62,6 @@ router.get('/:id/stats', authenticate, requireRole('VENDOR'), async (req: AuthRe
   }
 });
 
-// Get vendor profile (Vendor-only)
 router.get('/:id/profile', authenticate, requireRole('VENDOR'), async (req: AuthRequest, res: Response) => {
   try {
     const profile = await vendorService.getVendorProfile(req.params.id, req.user!.id);
@@ -74,7 +71,6 @@ router.get('/:id/profile', authenticate, requireRole('VENDOR'), async (req: Auth
   }
 });
 
-// Update vendor profile (Vendor-only)
 router.patch('/:id/profile', authenticate, requireRole('VENDOR'), async (req: AuthRequest, res: Response) => {
   try {
     const validData = updateVendorProfileSchema.parse(req.body);
@@ -85,7 +81,6 @@ router.patch('/:id/profile', authenticate, requireRole('VENDOR'), async (req: Au
   }
 });
 
-// Update (overwrite) vendor services (Vendor-only)
 router.patch('/:id/services', authenticate, requireRole('VENDOR'), async (req: AuthRequest, res: Response) => {
   try {
     const validData = updateVendorServicesSchema.parse(req.body);
@@ -97,7 +92,6 @@ router.patch('/:id/services', authenticate, requireRole('VENDOR'), async (req: A
   }
 });
 
-// Add a single service (Vendor-only)
 router.post('/:id/services', authenticate, requireRole('VENDOR'), async (req: AuthRequest, res: Response) => {
   try {
     const validData = addVendorServiceSchema.parse(req.body);
@@ -108,7 +102,6 @@ router.post('/:id/services', authenticate, requireRole('VENDOR'), async (req: Au
   }
 });
 
-// Remove a service (Vendor-only)
 router.delete('/:id/services/:serviceName', authenticate, requireRole('VENDOR'), async (req: AuthRequest, res: Response) => {
   try {
     const { id, serviceName } = req.params;

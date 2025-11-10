@@ -10,10 +10,6 @@ type UpdateServicesData = z.infer<typeof updateVendorServicesSchema>;
 type AddServiceData = z.infer<typeof addVendorServiceSchema>;
 
 class VendorService {
-
-  /**
-   * Get all vendors (public)
-   */
   async getAllVendors() {
     return prisma.vendor.findMany({
       select: {
@@ -25,22 +21,17 @@ class VendorService {
     });
   }
 
-  /**
-   * Get a vendor's queue (public or vendor)
-   */
+  
   async getVendorQueue(vendorId: string, user?: AuthPayload) {
-    // If user is a vendor, only allow access to their own queue
     if (user && user.role === 'VENDOR' && user.id !== vendorId) {
       throw new HttpError('Unauthorized', 403);
     }
     return queueManager.getVendorQueue(vendorId);
   }
 
-  /**
-   * Get a vendor's pending tokens (vendor-only)
-   */
+  
   async getPendingTokens(vendorId: string, userId: string) {
-    await this.findAndAuthorizeVendor(vendorId, userId); // Authorize
+    await this.findAndAuthorizeVendor(vendorId, userId); 
     return prisma.token.findMany({
       where: {
         vendorId,
@@ -53,9 +44,7 @@ class VendorService {
     });
   }
 
-  /**
-   * Get aggregate stats for a vendor dashboard (vendor-only)
-   */
+ 
   async getVendorStats(vendorId: string, userId: string) {
     await this.findAndAuthorizeVendor(vendorId, userId);
 
@@ -100,12 +89,9 @@ class VendorService {
     };
   }
 
-  /**
-   * Get a vendor's profile (vendor-only)
-   */
+  
   async getVendorProfile(vendorId: string, userId: string) {
     const vendor = await this.findAndAuthorizeVendor(vendorId, userId);
-    // Return selected fields (don't include password)
     return {
       id: vendor.id,
       name: vendor.name,
@@ -117,9 +103,7 @@ class VendorService {
     };
   }
 
-  /**
-   * Update a vendor's profile (vendor-only)
-   */
+ 
   async updateVendorProfile(vendorId: string, userId: string, data: UpdateProfileData) {
     await this.findAndAuthorizeVendor(vendorId, userId);
     
@@ -141,13 +125,10 @@ class VendorService {
     });
   }
 
-  /**
-   * Overwrite all services for a vendor (vendor-only)
-   */
+  
   async updateVendorServices(vendorId: string, userId: string, data: UpdateServicesData) {
     await this.findAndAuthorizeVendor(vendorId, userId);
     
-    // Normalize: trim, lowercase, and remove duplicates
     const uniqueServices = [...new Set(data.services.map((s) => s.trim().toLowerCase()))];
 
     return prisma.vendor.update({
@@ -157,9 +138,7 @@ class VendorService {
     });
   }
 
-  /**
-   * Add a single new service (vendor-only)
-   */
+  
   async addVendorService(vendorId: string, userId: string, data: AddServiceData) {
     const vendor = await this.findAndAuthorizeVendor(vendorId, userId);
     const { service } = data; // Already trimmed/lowercased by Zod
@@ -177,9 +156,7 @@ class VendorService {
     });
   }
 
-  /**
-   * Remove a single service (vendor-only)
-   */
+ 
   async removeVendorService(vendorId: string, userId: string, serviceName: string) {
     const vendor = await this.findAndAuthorizeVendor(vendorId, userId);
     const normalizedServiceName = serviceName.trim().toLowerCase();
@@ -200,10 +177,7 @@ class VendorService {
     });
   }
 
-  /**
-   * Helper: Finds a vendor and confirms the user is that vendor.
-   * Throws 404 or 403 error.
-   */
+  
   private async findAndAuthorizeVendor(vendorId: string, userId: string) {
     const vendor = await prisma.vendor.findUnique({
       where: { id: vendorId },

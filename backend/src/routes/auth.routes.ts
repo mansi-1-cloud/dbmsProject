@@ -4,7 +4,7 @@ import {
   registerUserSchema, 
   registerVendorSchema, 
   loginSchema,
-  updateUserProfileSchema // <-- Import the new schema
+  updateUserProfileSchema
 } from '../validators/schemas.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
 import { AuthRequest } from '../types/index.js';
@@ -56,8 +56,6 @@ router.post('/login/user', async (req: Request, res: Response) => {
     if (error instanceof ZodError) {
       return res.status(400).json({ error: "Validation failed", issues: error.errors });
     }
-    // For login, any other failure (wrong pass, user not found)
-    // should be a 401. This is good security.
     res.status(401).json({ error: 'Invalid email or password' });
   }
 });
@@ -75,7 +73,6 @@ router.post('/login/vendor', async (req: Request, res: Response) => {
   }
 });
 
-// Get user profile
 router.get('/user/profile', authenticate, requireRole('USER'), async (req: AuthRequest, res: Response) => {
   try {
     // Logic is now in the service
