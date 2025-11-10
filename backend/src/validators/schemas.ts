@@ -1,7 +1,5 @@
 import { z } from 'zod';
 
-// --- User/Vendor Schemas ---
-
 export const registerUserSchema = z.object({
   email: z.string().email(),
   name: z.string().min(2),
@@ -30,8 +28,6 @@ export const updateUserProfileSchema = z.object({
 })
 .strict();
 
-// --- Token Schemas ---
-
 export const createTokenSchema = z.object({
   vendorId: z.string().min(1, "Vendor ID is required"),
   serviceType: z.string().min(1, "Service type is required"),
@@ -46,10 +42,6 @@ export const updateTokenStatusSchema = z.object({
   vendorMessage: z.string().optional().default(""),
 });
 
-
-// --- NEW VENDOR SCHEMAS ---
-
-// Regex for valid service names (alphanumeric, spaces, hyphens)
 const serviceNameRegex = /^[a-zA-Z0-9\s-]+$/;
 
 export const updateVendorProfileSchema = z.object({

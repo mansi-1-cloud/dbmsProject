@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import jwt, { Secret } from 'jsonwebtoken'; // <-- Import 'Secret' type
+import jwt, { Secret } from 'jsonwebtoken';
 import prisma from '../lib/prisma.js';
 import { z } from 'zod';
 import { 
@@ -9,23 +9,16 @@ import {
 } from '../validators/schemas.js';
 import { AuthPayload } from '../types/index.js';
 
-// 🚨 SECURITY WARNING:
-// 'your-secret-key' is a weak, public default.
-// You MUST set a strong, random JWT_SECRET in your .env file.
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = '7d';
 
 if (!JWT_SECRET) {
   console.error("FATAL ERROR: JWT_SECRET is not set in .env file.");
-  process.exit(1); // Stop the application if the secret is missing
+  process.exit(1);
 }
 
-// --- FIX #1 ---
-// We've already proven JWT_SECRET is a string, so
-// we cast it here for all class methods to use.
 const AppJwtSecret: Secret = JWT_SECRET;
 
-// Create types from your Zod schemas
 type RegisterUserData = z.infer<typeof registerUserSchema>;
 type RegisterVendorData = z.infer<typeof registerVendorSchema>;
 type UpdateUserProfileData = z.infer<typeof updateUserProfileSchema>;

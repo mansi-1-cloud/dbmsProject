@@ -4,12 +4,10 @@ import bcrypt from 'bcryptjs';
 async function seed() {
   console.log('🌱 Seeding database...');
 
-  // Clear existing data
   await prisma.token.deleteMany();
   await prisma.user.deleteMany();
   await prisma.vendor.deleteMany();
 
-  // Create users
   const users = await Promise.all([
     prisma.user.create({
       data: {
@@ -36,7 +34,6 @@ async function seed() {
 
   console.log(`✅ Created ${users.length} users`);
 
-  // Create vendors
   const vendors = await Promise.all([
     prisma.vendor.create({
       data: {
