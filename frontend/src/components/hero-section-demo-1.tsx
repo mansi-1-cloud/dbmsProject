@@ -85,7 +85,7 @@ export default function HeroSection() {
         >
           <div className="w-full overflow-hidden rounded-xl border border-gray-300 dark:border-gray-700">
             <img
-              src="/assests/image.png"
+              src="/image.png"
               alt="Landing page preview"
               className="aspect-[16/9] h-auto w-full object-cover"
               height={1000}
@@ -102,7 +102,7 @@ const Navbar = () => {
   return (
     <nav className="flex w-full items-center justify-between border-t border-b border-neutral-200 px-4 py-4 dark:border-neutral-800">
       <div className="flex items-center gap-3">
-        <img src="/assests/icon6.png" alt="Logo" className="h-12 w-auto md:h-14 object-contain" />
+        <img src="/icon6.png" alt="Logo" className="h-12 w-auto md:h-14 object-contain" />
         <h1 className="text-base font-bold md:text-2xl">Q Connect</h1>
       </div>
       <a

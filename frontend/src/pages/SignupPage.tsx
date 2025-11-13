@@ -76,7 +76,7 @@ export function SignupPage() {
         <div className="w-full">
           {/* Logo (clickable) */}
           <Link to="/" className="inline-block mb-6">
-            <img src="/assests/icon6.png" alt="Q Connect Logo" className="h-16 w-auto object-contain hover:opacity-80 transition-opacity cursor-pointer" />
+            <img src="/icon6.png" alt="Q Connect Logo" className="h-16 w-auto object-contain hover:opacity-80 transition-opacity cursor-pointer" />
           </Link>
 
           {/* Title */}
