@@ -74,8 +74,10 @@ export function SignupPage() {
       {/* --- Centered Form Container --- */}
       <div className="w-full max-w-md p-8">
         <div className="w-full">
-          {/* Logo (simple style) */}
-          <div className="h-10 w-10 bg-black rounded-lg mb-8"></div>
+          {/* Logo (clickable) */}
+          <Link to="/" className="inline-block mb-6">
+            <img src="/assests/icon6.png" alt="Q Connect Logo" className="h-16 w-auto object-contain hover:opacity-80 transition-opacity cursor-pointer" />
+          </Link>
 
           {/* Title */}
           <motion.h1
@@ -88,7 +90,7 @@ export function SignupPage() {
           </motion.h1>
 
           {/* Subtitle */}
-          <p className="text-gray-600 mb-8">
+          <p className="text-gray-600 mb-6">
             Select your role and join the platform to access the right tools.
           </p>
 
