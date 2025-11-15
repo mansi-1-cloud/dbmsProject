@@ -480,25 +480,25 @@ function ExpandableCardDemo({ cards }: { cards: Card[] }) {
             <motion.div
               layoutId={`card-${active.id}-${id}`}
               ref={ref}
-              className="w-full max-w-[520px] h-full md:h-fit md:max-h-[90%] flex flex-col bg-white text-black sm:rounded-3xl overflow-hidden shadow-2xl"
+              className="w-[95%] max-w-[520px] h-[90vh] md:h-auto md:max-h-[85vh] flex flex-col bg-white text-black rounded-xl md:rounded-3xl overflow-hidden shadow-2xl mx-4"
             >
-              <div className="flex justify-between items-start p-4">
+              <div className="flex justify-between items-start p-4 border-b border-gray-100 flex-shrink-0">
                 <div>
                   <motion.h3 layoutId={`title-${active.id}-${id}`} className="font-bold text-neutral-800">
                     {active.title}
                   </motion.h3>
-                  <motion.p layoutId={`description-${active.id}-${id}`} className="text-neutral-600">
+                  <motion.p layoutId={`description-${active.id}-${id}`} className="text-neutral-600 text-sm">
                     {active.description}
                   </motion.p>
                 </div>
               </div>
-              <div className="pt-4 relative px-4">
+              <div className="flex-1 overflow-y-auto px-4 py-4">
                 <motion.div
                   layout
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  className="text-neutral-700 text-sm lg:text-base h-auto md:h-fit pb-10 flex flex-col items-start gap-4 overflow-auto"
+                  className="text-neutral-700 text-sm lg:text-base flex flex-col items-start gap-4"
                 >
                   <active.component 
                     token={active.token} 
