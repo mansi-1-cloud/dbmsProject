@@ -13,7 +13,6 @@ class SocketService {
   private socket: Socket | null = null;
   private heartbeatTimer: number | null = null;
   private emitQueue: EmitQueueItem[] = [];
-  private isManuallyDisconnected = false;
 
   /** Create normalized URL: convert http -> ws and https -> wss if not provided */
   private getSocketUrl() {
@@ -64,7 +63,6 @@ class SocketService {
 
     this.socket.on('connect', () => {
       console.log('✅ WebSocket connected', this.socket?.id);
-      this.isManuallyDisconnected = false;
       // flush queued emits
       this.emitQueue.forEach(it => this.emit(it.event, it.data));
       this.emitQueue = [];
@@ -84,7 +82,7 @@ class SocketService {
     });
 
     // Example server 'pong' listener (if you implement ping-pong custom events)
-    this.socket.on('pong', (data) => {
+    this.socket.on('pong', () => {
       // optional latency handling
     });
 
@@ -94,8 +92,7 @@ class SocketService {
   }
 
   /** Disconnect but mark as manual so auto-reconnect attempts can be suppressed if desired */
-  disconnect(manual = true) {
-    this.isManuallyDisconnected = manual;
+  disconnect(_manual = true) {
     if (this.socket) {
       this.socket.disconnect();
       this.cleanup();
@@ -146,7 +143,7 @@ class SocketService {
   }
 
   /** Use when token changed (refresh) to reconnect with new token */
-  async reconnectWithToken(newToken: string) {
+  async reconnectWithToken() {
     // disconnect & create new io instance with updated auth
     this.disconnect(false);
     // small delay to ensure resources freed (optional)
