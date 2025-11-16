@@ -1,4 +1,4 @@
-import cloudinary from '../lib/cloudinary';
+import cloudinary from '../lib/cloudinary.js';
 import { Readable } from 'stream';
 
 interface UploadResult {
