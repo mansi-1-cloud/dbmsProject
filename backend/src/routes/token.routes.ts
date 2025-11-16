@@ -5,6 +5,8 @@ import { AuthRequest } from '../types/index.js';
 import { createTokenSchema, updateTokenStatusSchema } from '../validators/schemas.js';
 import { HttpError } from '../lib/errors.js';
 import { ZodError } from 'zod';
+import { upload } from '../middleware/upload.js';
+import { FileUploadService } from '../services/FileUploadService.js';
 
 const router = Router();
 const handleError = (error: any, res: Response) => {
@@ -18,10 +20,38 @@ const handleError = (error: any, res: Response) => {
   return res.status(500).json({ error: 'Internal server error' });
 };
 
-router.post('/', authenticate, requireRole('USER'), async (req: AuthRequest, res: Response) => {
+router.post('/', authenticate, requireRole('USER'), upload.array('files', 10), async (req: AuthRequest, res: Response) => {
   try {
     const validData = createTokenSchema.parse(req.body);
-    const token = await tokenService.createToken(validData, req.user!.id);
+    
+    // Handle file uploads if files are present
+    let uploadedFiles: any[] = [];
+    if (req.files && Array.isArray(req.files) && req.files.length > 0) {
+      try {
+        const uploadResults = await FileUploadService.uploadMultipleFiles(req.files);
+        uploadedFiles = req.files.map((file, index) => ({
+          name: file.originalname,
+          size: file.size,
+          type: file.mimetype,
+          url: uploadResults[index].url,
+          publicId: uploadResults[index].publicId,
+        }));
+      } catch (uploadError) {
+        console.error('File upload error:', uploadError);
+        return res.status(500).json({ error: 'Failed to upload files' });
+      }
+    }
+    
+    // Merge uploaded files with params
+    const tokenData = {
+      ...validData,
+      params: {
+        ...validData.params,
+        files: uploadedFiles,
+      },
+    };
+    
+    const token = await tokenService.createToken(tokenData, req.user!.id);
     res.status(201).json(token);
   } catch (error: any) {
     handleError(error, res);

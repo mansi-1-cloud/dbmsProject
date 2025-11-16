@@ -23,7 +23,16 @@ console.log('🌐 CORS enabled for:', allowedOrigins);
 app.use(cors({
   origin: (origin, callback) => {
     console.log('📡 Incoming request from origin:', origin);
-    if (!origin || allowedOrigins.includes(origin)) {
+    // Allow requests with no origin (like mobile apps, curl, Postman)
+    if (!origin) {
+      return callback(null, true);
+    }
+    // In development, allow all localhost origins
+    if (process.env.NODE_ENV === 'development' && origin.startsWith('http://localhost')) {
+      return callback(null, true);
+    }
+    // Check allowed origins list
+    if (allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       console.log('❌ Origin not allowed:', origin);

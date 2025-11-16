@@ -121,7 +121,46 @@ class ApiService {
   }
 
   // --- Tokens ---
-  async createToken(vendorId: string, serviceType: string, subject: string, description: string, params?: any) {
+  async createToken(vendorId: string, serviceType: string, subject: string, description: string, params?: any, files?: File[]) {
+    // If files are provided, use FormData instead of JSON
+    if (files && files.length > 0) {
+      const formData = new FormData();
+      formData.append('vendorId', vendorId);
+      formData.append('serviceType', serviceType);
+      formData.append('subject', subject);
+      formData.append('description', description);
+      
+      // Append params as JSON string if provided
+      if (params) {
+        formData.append('params', JSON.stringify(params));
+      }
+      
+      // Append all files
+      files.forEach(file => {
+        formData.append('files', file);
+      });
+      
+      // Get token for auth
+      const token = store.get(tokenAtom);
+      
+      const response = await fetch(`${API_BASE_URL}/tokens`, {
+        method: 'POST',
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+          // Don't set Content-Type - let browser set it with boundary for multipart/form-data
+        },
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || 'Request failed');
+      }
+      
+      return response.json();
+    }
+    
+    // Original JSON request (no files)
     return this.request('/tokens', {
       method: 'POST',
       body: JSON.stringify({ vendorId, serviceType, subject, description, params }),

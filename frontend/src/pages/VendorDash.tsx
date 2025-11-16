@@ -356,7 +356,18 @@ const truncateText = (value: string, length = 120) =>
 const formatDateTime = (date?: string | null) => {
   if (!date) return "Not set";
   try {
-    return new Date(date).toLocaleString();
+    const d = new Date(date);
+    const hours = d.getHours();
+    const minutes = d.getMinutes().toString().padStart(2, '0');
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const displayHours = hours % 12 || 12;
+    
+    const day = d.getDate().toString().padStart(2, '0');
+    const monthNames = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"];
+    const month = monthNames[d.getMonth()];
+    const year = d.getFullYear().toString().slice(-2);
+    
+    return `${displayHours}:${minutes} ${ampm}, ${day} ${month} ${year}`;
   } catch {
     return date;
   }
@@ -674,6 +685,58 @@ const ProjectProposalReviewContent = ({
           </p>
         )}
       </section>
+
+      {/* Attached Files Section */}
+      {token.params?.files && token.params.files.length > 0 && (
+        <section className="mt-6 space-y-2">
+          <h4 className="text-sm font-bold uppercase text-gray-400">Attached Files</h4>
+          <div className="space-y-2">
+            {token.params.files.map((file: any, index: number) => (
+              <div
+                key={index}
+                className="flex items-center gap-3 p-3 bg-gray-50 border border-gray-200 rounded-md hover:bg-gray-100 transition-colors"
+              >
+                <svg className="w-5 h-5 text-blue-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{file.name || `File ${index + 1}`}</p>
+                  {file.size && (
+                    <p className="text-xs text-gray-500">
+                      {(file.size / 1024).toFixed(2)} KB
+                    </p>
+                  )}
+                  {file.type && (
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      {file.type.includes('pdf') ? 'PDF Document' : file.type.includes('word') ? 'Word Document' : 'Document'}
+                    </p>
+                  )}
+                </div>
+                {file.url ? (
+                  <a
+                    href={`${file.url}?dl=${encodeURIComponent(file.name)}`}
+                    download={file.name}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0 p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
+                    title="Download file"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                  </a>
+                ) : (
+                  <div className="flex-shrink-0 p-2 text-gray-400" title="File attached">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13" />
+                    </svg>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {isPending && onApprove && onReject && (
         <section className="mt-6 flex gap-3">
