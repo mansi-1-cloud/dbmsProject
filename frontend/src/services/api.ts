@@ -36,7 +36,20 @@ class ApiService {
       return null;
     }
 
-    const data = await response.json();
+    let data;
+    try {
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+      } else {
+        const text = await response.text();
+        console.error('Response is not JSON:', text);
+        throw new Error(`Invalid response format. Expected JSON but got: ${contentType || 'unknown'}`);
+      }
+    } catch (parseError) {
+      console.error('Failed to parse response:', parseError);
+      throw new Error(`Failed to parse server response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+    }
 
     if (!response.ok) {
       // If validation errors exist, format them nicely
@@ -53,17 +66,17 @@ class ApiService {
   }
 
   // --- Auth ---
-  async registerUser(email: string, name: string, password: string) {
+  async registerUser(email: string, name: string, password: string, phoneNumber: string) {
     return this.request('/auth/register/user', {
       method: 'POST',
-      body: JSON.stringify({ email, name, password }),
+      body: JSON.stringify({ email, name, password, phoneNumber }),
     });
   }
 
-  async registerVendor(email: string, name: string, password: string, services: string[]) {
+  async registerVendor(email: string, name: string, password: string, phoneNumber: string, services: string[]) {
     return this.request('/auth/register/vendor', {
       method: 'POST',
-      body: JSON.stringify({ email, name, password, services }),
+      body: JSON.stringify({ email, name, password, phoneNumber, services }),
     });
   }
 
@@ -143,21 +156,44 @@ class ApiService {
       // Get token for auth
       const token = store.get(tokenAtom);
       
-      const response = await fetch(`${API_BASE_URL}/tokens`, {
-        method: 'POST',
-        headers: {
-          ...(token && { Authorization: `Bearer ${token}` }),
-          // Don't set Content-Type - let browser set it with boundary for multipart/form-data
-        },
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Request failed');
+      try {
+        const response = await fetch(`${API_BASE_URL}/tokens`, {
+          method: 'POST',
+          headers: {
+            ...(token && { Authorization: `Bearer ${token}` }),
+            // Don't set Content-Type - let browser set it with boundary for multipart/form-data
+          },
+          body: formData,
+        });
+        
+        if (response.status === 204) {
+          return null;
+        }
+
+        let data;
+        try {
+          const contentType = response.headers.get('content-type');
+          if (contentType && contentType.includes('application/json')) {
+            data = await response.json();
+          } else {
+            const text = await response.text();
+            console.error('Response is not JSON:', text);
+            throw new Error(`Invalid response format. Expected JSON but got: ${contentType || 'unknown'}`);
+          }
+        } catch (parseError) {
+          console.error('Failed to parse response:', parseError);
+          throw new Error(`Failed to parse server response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`);
+        }
+        
+        if (!response.ok) {
+          throw new Error(data.error || 'Request failed');
+        }
+        
+        return data;
+      } catch (error) {
+        console.error('File upload error:', error);
+        throw error;
       }
-      
-      return response.json();
     }
     
     // Original JSON request (no files)
@@ -230,6 +266,68 @@ class ApiService {
     return this.request(`/tokens/${tokenId}`, {
       method: 'DELETE',
     });
+  }
+
+  async downloadFile(tokenId: string, fileIndex: number) {
+    try {
+      const token = store.get(tokenAtom);
+      const response = await fetch(`${API_BASE_URL}/tokens/${tokenId}/files/${fileIndex}`, {
+        headers: {
+          ...(token && { Authorization: `Bearer ${token}` }),
+        },
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Download failed');
+      }
+
+      // Check content type to determine how to handle response
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType?.includes('application/json')) {
+        // Response is JSON with download info
+        const data = await response.json();
+        
+        if (data.isDemo) {
+          // For demo mode, show info to user
+          alert(`Demo Mode: ${data.message}\n\nIn production with Cloudinary configured, you would be able to download "${data.fileName}".`);
+          return;
+        }
+        
+        if (data.downloadUrl) {
+          // Open the download URL in new tab
+          window.open(data.downloadUrl, '_blank');
+          return;
+        }
+      } else if (contentType?.includes('application/') || contentType?.includes('text/')) {
+        // Response is binary/file content - download it
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `file_${fileIndex}`;
+        
+        // Get filename from response headers if available
+        const disposition = response.headers.get('content-disposition');
+        if (disposition) {
+          const match = disposition.match(/filename="(.+?)"/);
+          if (match) link.download = match[1];
+        }
+        
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        return;
+      }
+
+      // Fallback: treat as redirect
+      throw new Error('Unexpected response format');
+    } catch (error) {
+      console.error('File download error:', error);
+      throw error;
+    }
   }
 
   // --- Profile Management ---

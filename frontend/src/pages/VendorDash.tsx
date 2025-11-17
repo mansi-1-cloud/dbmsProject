@@ -265,11 +265,17 @@ const VendorDashboardContent = ({ vendorId, vendorName }: { vendorId: string; ve
     socket.on("token.created", handleRefresh);
     socket.on("token.cancelled", handleRefresh);
     socket.on("queue.update", handleQueueUpdate);
+    
+    // Real-time event listeners for vendor queue updates
+    socket.on("queue:new-token", handleRefresh); // New token added to queue
+    socket.on("token:moved-to-progress", handleRefresh); // Token moved to progress
 
     return () => {
       socket.off("token.created", handleRefresh);
       socket.off("token.cancelled", handleRefresh);
       socket.off("queue.update", handleQueueUpdate);
+      socket.off("queue:new-token", handleRefresh);
+      socket.off("token:moved-to-progress", handleRefresh);
       socket.disconnect();
     };
   }, [vendorId, refreshData]);
@@ -713,18 +719,22 @@ const ProjectProposalReviewContent = ({
                   )}
                 </div>
                 {file.url ? (
-                  <a
-                    href={`${file.url}?dl=${encodeURIComponent(file.name)}`}
-                    download={file.name}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.downloadFile(token.id, index);
+                      } catch (error) {
+                        console.error('Download failed:', error);
+                        alert('Failed to download file. Please try again.');
+                      }
+                    }}
                     className="flex-shrink-0 p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-md transition-colors"
                     title="Download file"
                   >
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                     </svg>
-                  </a>
+                  </button>
                 ) : (
                   <div className="flex-shrink-0 p-2 text-gray-400" title="File attached">
                     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
