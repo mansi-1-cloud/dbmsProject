@@ -39,6 +39,7 @@ export class AuthService {
         email: data.email,
         name: data.name,
         password: hashedPassword,
+        phoneNumber: data.phoneNumber, // Store phone number
       },
     });
 
@@ -54,6 +55,7 @@ export class AuthService {
         id: user.id,
         email: user.email,
         name: user.name,
+        phoneNumber: user.phoneNumber,
         role: user.role,
       },
       token,
@@ -71,6 +73,7 @@ export class AuthService {
         email: data.email,
         name: data.name,
         password: hashedPassword,
+        phoneNumber: data.phoneNumber, // Store phone number
         services: data.services,
       },
     });
@@ -87,6 +90,7 @@ export class AuthService {
         id: vendor.id,
         email: vendor.email,
         name: vendor.name,
+        phoneNumber: vendor.phoneNumber,
         role: vendor.role,
         services: vendor.services,
       },
@@ -165,7 +169,6 @@ export class AuthService {
         email: true,
         phoneNumber: true,
         address: true,
-        createdAt: true,
       },
     });
   }

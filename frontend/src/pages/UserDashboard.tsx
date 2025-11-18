@@ -250,11 +250,21 @@ const UserDashboardContent = ({ userId, userName }: { userId: string; userName: 
     socket.on("token.created", handleRefresh); // Refresh when user creates one
     socket.on("token.updated", handleRefresh); // Refresh when vendor updates status
     socket.on("token.cancelled", handleRefresh);
+    
+    // Real-time event listeners for token updates
+    socket.on("token:queued", handleRefresh); // Token added to queue
+    socket.on("token:status-changed", handleRefresh); // Token status changed
+    socket.on("queue:position-updated", handleRefresh); // Queue position updated
+    socket.on("token:completed", handleRefresh); // Token completed
 
     return () => {
       socket.off("token.created", handleRefresh);
       socket.off("token.updated", handleRefresh);
       socket.off("token.cancelled", handleRefresh);
+      socket.off("token:queued", handleRefresh);
+      socket.off("token:status-changed", handleRefresh);
+      socket.off("queue:position-updated", handleRefresh);
+      socket.off("token:completed", handleRefresh);
       socket.disconnect();
     };
   }, [userId, refreshData]);

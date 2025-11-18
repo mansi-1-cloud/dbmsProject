@@ -1,8 +1,10 @@
 import prisma from '../lib/prisma.js';
 import { queueManager } from './QueueManager.js';
 import { emitToUser, emitToVendor } from '../websocket/index.js';
+import notificationService from './NotificationService.js';
 import { AuthPayload, TokenWithETA } from '../types/index.js';
 import { HttpError } from '../lib/errors.js';
+import { NotificationType } from '../types/notification.js';
 import { z } from 'zod';
 import { createTokenSchema, updateTokenStatusSchema } from '../validators/schemas.js';
 
@@ -233,10 +235,44 @@ class TokenService {
     const updatedToken = await prisma.token.update({
       where: { id: tokenId },
       data: { status: 'COMPLETED' },
-      include: { user: { select: { name: true, email: true } } },
+      include: { 
+        user: { select: { name: true, email: true, phoneNumber: true } },
+        vendor: { select: { name: true } }
+      },
     });
 
     await queueManager.removeFromQueue(token.id, token.vendorId);
+
+    // Emit WebSocket event to user
+    emitToUser(token.userId, 'token:completed', {
+      tokenId: token.id,
+      serviceType: token.serviceType,
+      message: `Your ${token.serviceType} request is complete! You can now collect your work from the vendor.`,
+    });
+
+    // Send SMS notification to user
+    if (updatedToken.user?.phoneNumber) {
+      console.log(`📱 Sending COMPLETED notification for token ${token.id} to ${updatedToken.user.phoneNumber}`);
+      try {
+        const message = await notificationService.buildStatusMessage(NotificationType.TOKEN_COMPLETED, {
+          tokenId: token.id,
+          serviceType: token.serviceType,
+          userName: updatedToken.user.name,
+          vendorName: updatedToken.vendor?.name,
+        });
+        
+        await notificationService.sendNotification({
+          phoneNumber: updatedToken.user.phoneNumber,
+          message: message,
+          type: NotificationType.TOKEN_COMPLETED,
+          userId: token.userId,
+          vendorId: token.vendorId,
+          tokenId: token.id,
+        }).catch(err => console.error('Failed to send completion notification:', err));
+      } catch (err) {
+        console.error(`❌ Error sending completion notification for token ${token.id}:`, err);
+      }
+    }
 
     emitToUser(token.userId, 'token.updated', updatedToken);
     await this.emitQueueUpdate(token.vendorId);

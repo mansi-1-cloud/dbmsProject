@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { Mail, Lock, User } from "lucide-react";
+import { Mail, Lock, User, Phone } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../services/api";
 import { useAuth } from "../hooks/useAuth";
@@ -19,6 +19,7 @@ export function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [servicesInput, setServicesInput] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -39,7 +40,7 @@ export function SignupPage() {
 
     try {
       if (role === "USER") {
-        const { user, token } = await api.registerUser(email, name, password);
+        const { user, token } = await api.registerUser(email, name, password, phoneNumber);
         setAuth(user, token);
         navigate("/user/dashboard", { replace: true });
       } else {
@@ -52,7 +53,7 @@ export function SignupPage() {
           throw new Error("Please list at least one service you provide.");
         }
 
-        const { vendor, token } = await api.registerVendor(email, name, password, services);
+        const { vendor, token } = await api.registerVendor(email, name, password, phoneNumber, services);
         setAuth({
           id: vendor.id,
           name: vendor.name,
@@ -185,6 +186,31 @@ export function SignupPage() {
                   className="w-full bg-white border border-gray-300 rounded-md p-3 pl-10 text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
+            </div>
+
+            {/* Phone Number Field */}
+            <div>
+              <label
+                htmlFor="phoneNumber"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Phone Number
+              </label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="tel"
+                  id="phoneNumber"
+                  value={phoneNumber}
+                  onChange={(event) => setPhoneNumber(event.target.value)}
+                  placeholder="Enter your phone number (e.g., +1 555-123-4567)"
+                  required
+                  className="w-full bg-white border border-gray-300 rounded-md p-3 pl-10 text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Used to receive SMS notifications about your tokens
+              </p>
             </div>
 
             {role === "VENDOR" && (

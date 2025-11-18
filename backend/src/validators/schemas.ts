@@ -1,9 +1,22 @@
 import { z } from 'zod';
 
+// Phone number validation - supports multiple formats
+const phoneNumberSchema = z.string()
+  .refine(
+    (phone) => {
+      // Remove all non-digit characters
+      const cleaned = phone.replace(/\D/g, '');
+      // Accept 10+ digit phone numbers
+      return cleaned.length >= 10;
+    },
+    "Phone number must be at least 10 digits"
+  );
+
 export const registerUserSchema = z.object({
   email: z.string().email(),
   name: z.string().min(2),
   password: z.string().min(6),
+  phoneNumber: phoneNumberSchema, // Required for notifications
 });
 
 export const registerVendorSchema = registerUserSchema.extend({
@@ -17,10 +30,7 @@ export const loginSchema = z.object({
 
 export const updateUserProfileSchema = z.object({
   name: z.string().min(1, "Name cannot be empty").optional(),
-  phoneNumber: z.string()
-    .regex(/^\d{10}$/, "Phone number must be exactly 10 digits")
-    .nullable()
-    .optional(),
+  phoneNumber: phoneNumberSchema.optional(), // Updated format
   address: z.string()
     .min(1, "Address cannot be empty")
     .nullable()
@@ -46,10 +56,7 @@ const serviceNameRegex = /^[a-zA-Z0-9\s-]+$/;
 
 export const updateVendorProfileSchema = z.object({
   name: z.string().min(1, "Name cannot be empty").optional(),
-  phoneNumber: z.string()
-    .regex(/^\d{10}$/, "Phone number must be exactly 10 digits")
-    .nullable()
-    .optional(),
+  phoneNumber: phoneNumberSchema.optional(), // Updated format
   address: z.string()
     .min(1, "Address cannot be empty")
     .nullable()

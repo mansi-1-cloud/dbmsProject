@@ -1,15 +1,11 @@
 import { Request } from 'express';
-
-export type Role = 'USER' | 'VENDOR' | 'ADMIN'; 
+export { NotificationType } from './notification.js';
+export type { NotificationType as NotificationTypeType, NotificationStatus, SendNotificationParams, NotificationResponse, BulkNotificationParams, NotificationQueuedEvent } from './notification.js'; 
 
 export interface AuthPayload {
   id: string;
   email: string;
   role: Role; 
-}
-
-export interface AuthRequest extends Request {
-  user?: AuthPayload;
 }
 
 export interface AuthRequest extends Request {
@@ -51,3 +47,5 @@ export interface SchedulingStrategy {
   
   getEstimatedDuration(serviceType: string): number;
 }
+
+export type Role = 'USER' | 'VENDOR' | 'ADMIN';
