@@ -179,12 +179,14 @@ export class QueueManager {
     const updatePromises = sortedQueue.map(async (queueToken, i) => {
       const estimatedCompletion = this.strategy.estimateCompletion(i, sortedQueue);
       const token = tokens.find(t => t.id === queueToken.id);
+      const oldPosition = token?.queuePosition;
+      const newPosition = i + 1;
 
       // Update token position
       await prisma.token.update({
         where: { id: queueToken.id },
         data: {
-          queuePosition: i + 1,
+          queuePosition: newPosition,
           estimatedCompletion,
         },
       });
@@ -193,20 +195,20 @@ export class QueueManager {
       if (token?.user) {
         emitToUser(token.userId, 'queue:position-updated', {
           tokenId: queueToken.id,
-          newPosition: i + 1,
+          newPosition: newPosition,
           estimatedCompletion: estimatedCompletion,
           serviceType: token.serviceType,
         });
       }
 
-      // Send position update notification if position changed and user has phone number
-      if (token?.user?.phoneNumber && i + 1 <= 3) {
-        // Only notify top 3 positions
-        console.log(`📱 Sending position update for token ${token.id} (position ${i + 1}) to ${token.user.phoneNumber}`);
+      // Send position update notification ONLY if position changed and user has phone number
+      if (token?.user?.phoneNumber && oldPosition !== newPosition && newPosition <= 3) {
+        // Only notify for changes in the top 3 positions
+        console.log(`📱 Sending position update for token ${token.id} (position ${newPosition}) to ${token.user.phoneNumber}`);
         try {
           const message = await notificationService.buildStatusMessage(NotificationType.POSITION_UPDATED, {
             tokenId: token.id,
-            position: i + 1,
+            position: newPosition,
             serviceType: token.serviceType,
             userName: token.user.name,
             vendorName: token.vendor?.name,

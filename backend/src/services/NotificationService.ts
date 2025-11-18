@@ -151,6 +151,7 @@ class TwilioNotificationService {
 
   /**
    * Format phone number to international format
+   * Default country code can be set via environment variable (default: +91 for India)
    */
   private formatPhoneNumber(phone: string): string {
     if (!phone) {
@@ -164,9 +165,19 @@ class TwilioNotificationService {
       throw new Error(`Phone number too short: ${cleaned} (need at least 10 digits)`);
     }
 
-    // If 10 digits (US number), add +1 prefix
+    // Get default country code from environment or use +91 (India)
+    const defaultCountryCode = process.env.DEFAULT_COUNTRY_CODE || '91';
+
+    // If 10 digits (local number), add default country code
     if (cleaned.length === 10) {
-      const formatted = `+1${cleaned}`;
+      const formatted = `+${defaultCountryCode}${cleaned}`;
+      console.log(`📱 Phone formatted: ${phone} → ${formatted}`);
+      return formatted;
+    }
+
+    // If 12 digits and starts with 91 (India with country code), add +
+    if (cleaned.length === 12 && cleaned.startsWith('91')) {
+      const formatted = `+${cleaned}`;
       console.log(`📱 Phone formatted: ${phone} → ${formatted}`);
       return formatted;
     }
@@ -218,7 +229,7 @@ class TwilioNotificationService {
       const messages: Record<string, string> = {
         'TOKEN_CREATED': `Hi ${userName}, your ${serviceType} request at ${vendorName} has been received! We'll notify you soon.`,
         
-        'TOKEN_APPROVED': `Great news ${userName}! Your ${serviceType} request at ${vendorName} has been accepted. Expected time: ${formatTime(data.estimatedCompletion) || 'Soon'}`,
+        'TOKEN_APPROVED': `Your request for ${serviceType} has been accepted by ${vendorName}. Position in queue is #${data.position}. Estimated wait time is ${formatTime(data.estimatedCompletion) || 'calculating...'}.`,
         
         'TOKEN_REJECTED': `Hi ${userName}, your ${serviceType} request at ${vendorName} could not be processed. Reason: ${data.reason || 'Vendor unable to assist'}. Please contact support.`,
         
@@ -226,7 +237,7 @@ class TwilioNotificationService {
         
         'TOKEN_IN_PROGRESS': `Great! ${userName}, your ${serviceType} request at ${vendorName} has started. The vendor is working on it now.`,
         
-        'TOKEN_COMPLETED': `Perfect! ${userName}, your ${serviceType} request at ${vendorName} is complete! You can now collect your work. ${data.message ? `Note: ${data.message}` : ''}`,
+        'TOKEN_COMPLETED': `Your request for ${serviceType} from ${vendorName} has been finished. Please collect it at the counter.`,
         
         'TOKEN_CANCELLED': `Hi ${userName}, your ${serviceType} request at ${vendorName} has been cancelled. If you have questions, please contact support.`,
         
