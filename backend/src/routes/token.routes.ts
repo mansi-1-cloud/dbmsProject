@@ -4,7 +4,7 @@ import prisma from '../lib/prisma.js';
 import { tokenService } from '../services/tokenServices.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
 import { AuthRequest } from '../types/index.js';
-import { createTokenSchema, updateTokenStatusSchema } from '../validators/schemas.js';
+import { createTokenSchema, updateTokenStatusSchema, cancelTokenByVendorSchema } from '../validators/schemas.js';
 import { HttpError } from '../lib/errors.js';
 import { ZodError } from 'zod';
 import { upload } from '../middleware/upload.js';
@@ -127,6 +127,16 @@ router.post('/:id/reject', authenticate, requireRole('VENDOR'), async (req: Auth
   try {
     const { vendorMessage } = updateTokenStatusSchema.parse(req.body);
     const updatedToken = await tokenService.rejectToken(req.params.id, req.user!.id, vendorMessage);
+    res.json(updatedToken);
+  } catch (error: any) {
+    handleError(error, res);
+  }
+});
+      
+router.post('/:id/cancel-by-vendor', authenticate, requireRole('VENDOR'), async (req: AuthRequest, res: Response) => {
+  try {
+    const { reason } = cancelTokenByVendorSchema.parse(req.body);
+    const updatedToken = await tokenService.cancelTokenByVendor(req.params.id, req.user!.id, reason);
     res.json(updatedToken);
   } catch (error: any) {
     handleError(error, res);

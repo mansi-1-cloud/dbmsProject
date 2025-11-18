@@ -224,6 +224,13 @@ class ApiService {
     });
   }
 
+  async cancelTokenByVendor(tokenId: string, reason: string) {
+    return this.request(`/tokens/${tokenId}/cancel-by-vendor`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  }
+
   async completeToken(tokenId: string) {
     return this.request(`/tokens/${tokenId}/complete`, {
       method: 'POST',

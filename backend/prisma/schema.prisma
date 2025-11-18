@@ -68,6 +68,7 @@ model Token {
   status              TokenStatus @default(PENDING)
   estimatedCompletion DateTime?
   vendorMessage       String?
+  cancellationReason  String?
   queuePosition       Int?
   createdAt           DateTime    @default(now())
   updatedAt           DateTime    @updatedAt

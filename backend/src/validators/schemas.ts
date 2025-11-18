@@ -52,6 +52,10 @@ export const updateTokenStatusSchema = z.object({
   vendorMessage: z.string().optional().default(""),
 });
 
+export const cancelTokenByVendorSchema = z.object({
+  reason: z.string().min(1, "A reason for cancellation is required."),
+});
+
 const serviceNameRegex = /^[a-zA-Z0-9\s-]+$/;
 
 export const updateVendorProfileSchema = z.object({

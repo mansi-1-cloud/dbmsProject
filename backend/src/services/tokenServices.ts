@@ -222,6 +222,33 @@ class TokenService {
     return updatedToken;
   }
 
+  async cancelTokenByVendor(tokenId: string, vendorId: string, reason: string) {
+    const token = await this.findAndAuthorizeToken(tokenId, vendorId);
+
+    if (['COMPLETED', 'CANCELLED', 'REJECTED'].includes(token.status)) {
+      throw new HttpError('Cannot cancel this token', 400);
+    }
+
+    const updatedToken = await prisma.token.update({
+      where: { id: tokenId },
+      data: { 
+        status: 'CANCELLED',
+        cancellationReason: reason,
+      },
+      include: { vendor: { select: { name: true, email: true } } },
+    });
+
+    // Remove from queue if it was active
+    if (['QUEUED', 'IN_PROGRESS'].includes(token.status)) {
+      await queueManager.removeFromQueue(token.id, token.vendorId);
+      await this.emitQueueUpdate(token.vendorId);
+    }
+
+    emitToUser(token.userId, 'token.cancelled', updatedToken);
+    return updatedToken;
+  }
+
+
   /**
    * Complete a token (Vendor)
    */

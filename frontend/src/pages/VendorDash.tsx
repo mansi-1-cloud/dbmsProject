@@ -44,12 +44,12 @@ type Card = {
   component: React.ComponentType<{ 
     token: TokenWithUser;
     onApprove?: (tokenId: string) => void;
-    onReject?: (tokenId: string) => void;
+    onReject?: (tokenId: string, reason: string) => void;
     onComplete?: (tokenId: string) => void;
     isLoading?: boolean;
   }>;
   onApprove?: (tokenId: string) => void;
-  onReject?: (tokenId: string) => void;
+  onReject?: (tokenId: string, reason: string) => void;
   onComplete?: (tokenId: string) => void;
   isLoading?: boolean;
 };
@@ -166,6 +166,8 @@ const VendorDashboardContent = ({ vendorId, vendorName }: { vendorId: string; ve
   });
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [isCancelModalOpen, setCancelModalOpen] = useState(false);
+  const [currentTokenToCancel, setCurrentTokenToCancel] = useState<string | null>(null);
 
   const handleApprove = async (tokenId: string) => {
     setActionLoading(tokenId);
@@ -179,19 +181,25 @@ const VendorDashboardContent = ({ vendorId, vendorName }: { vendorId: string; ve
     }
   };
 
-  const handleReject = async (tokenId: string) => {
-    setActionLoading(tokenId);
+  const handleReject = (tokenId: string) => {
+    setCurrentTokenToCancel(tokenId);
+    setCancelModalOpen(true);
+  };
+
+  const submitCancellation = async (reason: string) => {
+    if (!currentTokenToCancel) return;
+
+    setActionLoading(currentTokenToCancel);
     try {
-      console.log("Rejecting token:", tokenId);
-      await api.rejectToken(tokenId, ""); // Empty reason for smooth transition
-      console.log("Reject successful, refreshing data...");
+      // Use the new endpoint for cancellation with a reason
+      await api.cancelTokenByVendor(currentTokenToCancel, reason);
       await refreshData({ silent: true });
-      console.log("Refresh complete");
     } catch (error: any) {
-      console.error("Failed to reject token:", error);
-      console.error("Error details:", error.response || error.message);
+      console.error("Failed to cancel token:", error);
     } finally {
       setActionLoading(null);
+      setCancelModalOpen(false);
+      setCurrentTokenToCancel(null);
     }
   };
 
@@ -305,49 +313,116 @@ const VendorDashboardContent = ({ vendorId, vendorName }: { vendorId: string; ve
   const cardsToDisplay = isPending ? pendingCards : queueCards;
 
   return (
-    <div className="flex flex-1 h-full" id="requests">
-      <div className="flex h-full w-full flex-1 flex-col overflow-y-auto">
-        <div className="bg-white p-4 border-b border-gray-200 flex justify-between items-center">
-          <h1 className="text-xl font-semibold text-black">Vendor Dashboard</h1>
+    <>
+      <div className="flex flex-1 h-full" id="requests">
+        <div className="flex h-full w-full flex-1 flex-col overflow-y-auto">
+          <div className="bg-white p-4 border-b border-gray-200 flex justify-between items-center">
+            <h1 className="text-xl font-semibold text-black">Vendor Dashboard</h1>
+          </div>
+
+          <div className="p-4 md:p-10">
+            <h2 className="text-2xl font-bold text-black">Welcome, {vendorName}!</h2>
+            <p className="text-gray-600 mb-6">Manage incoming requests and track your queue.</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+              <StatCard title="Pending Requests" value={stats.pendingCount} icon={<IconUsers className="h-6 w-6 text-blue-500" />} />
+              <StatCard title="In Queue" value={stats.activeCount} icon={<IconClock className="h-6 w-6 text-yellow-500" />} />
+              <StatCard title="Completed Today" value={stats.completedToday} icon={<IconCircleCheck className="h-6 w-6 text-green-500" />} />
+            </div>
+
+            <div className="flex border-b border-gray-200 mb-6">
+              <TabButton
+                title="Pending Requests"
+                count={pendingCards.length}
+                isActive={isPending}
+                onClick={() => setActiveTab("pending")}
+              />
+              <TabButton
+                title="Current Queue"
+                count={queueCards.length}
+                isActive={!isPending}
+                onClick={() => setActiveTab("queue")}
+              />
+            </div>
+
+            <div className="bg-white rounded-lg p-4 md:p-6">
+              {cardsToDisplay.length === 0 ? (
+                <EmptyState message={isPending ? "No pending requests right now." : "The queue is currently empty."} />
+              ) : (
+                <ExpandableCardDemo cards={cardsToDisplay} />
+              )}
+            </div>
+          </div>
         </div>
+      </div>
+      <CancelRequestModal
+        isOpen={isCancelModalOpen}
+        onClose={() => setCancelModalOpen(false)}
+        onConfirm={submitCancellation}
+        isLoading={!!actionLoading}
+      />
+    </>
+  );
+};
 
-        <div className="p-4 md:p-10">
-          <h2 className="text-2xl font-bold text-black">Welcome, {vendorName}!</h2>
-          <p className="text-gray-600 mb-6">Manage incoming requests and track your queue.</p>
+// --- Cancel Request Modal ---
+const CancelRequestModal = ({
+  isOpen,
+  onClose,
+  onConfirm,
+  isLoading,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onConfirm: (reason: string) => void;
+  isLoading: boolean;
+}) => {
+  const [reason, setReason] = useState("");
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <StatCard title="Pending Requests" value={stats.pendingCount} icon={<IconUsers className="h-6 w-6 text-blue-500" />} />
-            <StatCard title="In Queue" value={stats.activeCount} icon={<IconClock className="h-6 w-6 text-yellow-500" />} />
-            <StatCard title="Completed Today" value={stats.completedToday} icon={<IconCircleCheck className="h-6 w-6 text-green-500" />} />
-          </div>
+  if (!isOpen) return null;
 
-          <div className="flex border-b border-gray-200 mb-6">
-            <TabButton
-              title="Pending Requests"
-              count={pendingCards.length}
-              isActive={isPending}
-              onClick={() => setActiveTab("pending")}
-            />
-            <TabButton
-              title="Current Queue"
-              count={queueCards.length}
-              isActive={!isPending}
-              onClick={() => setActiveTab("queue")}
-            />
-          </div>
+  const handleConfirm = () => {
+    if (reason.trim()) {
+      onConfirm(reason.trim());
+      setReason(""); // Reset after submission
+    }
+  };
 
-          <div className="bg-white rounded-lg p-4 md:p-6">
-            {cardsToDisplay.length === 0 ? (
-              <EmptyState message={isPending ? "No pending requests right now." : "The queue is currently empty."} />
-            ) : (
-              <ExpandableCardDemo cards={cardsToDisplay} />
-            )}
-          </div>
+  return (
+    <div className="fixed inset-0 bg-black/30 z-50 flex items-center justify-center">
+      <div className="bg-white rounded-lg shadow-xl p-6 w-full max-w-md mx-4">
+        <h3 className="text-lg font-bold text-gray-800">Cancel Request</h3>
+        <p className="text-sm text-gray-600 mt-2">
+          Please provide a reason for cancelling this request. The user will be notified.
+        </p>
+        <textarea
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="e.g., Out of stock, unable to fulfill request at this time."
+          className="w-full mt-4 p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
+          rows={4}
+        />
+        <div className="mt-4 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            disabled={isLoading}
+            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+          >
+            Back
+          </button>
+          <button
+            onClick={handleConfirm}
+            disabled={!reason.trim() || isLoading}
+            className="px-4 py-2 text-sm font-medium text-white bg-red-600 rounded-md hover:bg-red-700 disabled:opacity-50"
+          >
+            {isLoading ? "Cancelling..." : "Confirm Cancellation"}
+          </button>
         </div>
       </div>
     </div>
   );
 };
+
 
 // --- Helpers ---
 const capitalizeWords = (value: string) =>
@@ -591,7 +666,7 @@ const ProjectProposalReviewContent = ({
 }: { 
   token: TokenWithUser;
   onApprove?: (tokenId: string) => void;
-  onReject?: (tokenId: string) => void;
+  onReject?: (tokenId: string, reason: string) => void;
   onComplete?: (tokenId: string) => void;
   isLoading?: boolean;
 }) => {
@@ -751,7 +826,7 @@ const ProjectProposalReviewContent = ({
       {isPending && onApprove && onReject && (
         <section className="mt-6 flex gap-3">
           <button
-            onClick={() => onReject(token.id)}
+            onClick={() => onReject(token.id, "")}
             disabled={isLoading}
             className="flex-1 px-4 py-3 bg-red-500 text-white rounded-lg hover:bg-red-600 transition disabled:opacity-50 disabled:cursor-not-allowed font-medium"
           >
